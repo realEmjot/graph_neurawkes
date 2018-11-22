@@ -3,29 +3,33 @@ import numpy as np
 
 # no batches
 class ContLSTMCell:
-    def __init__(self, num_types, num_units):
-        self.num_types = num_types # TODO possibly unneeded
+    def __init__(self, num_units, elem_size):
         self.num_units = num_units # TODO possibly unneeded
 
-        self.i_vars = self._create_gate_variables(num_units, 'i_vars')
-        self.f_vars = self._create_gate_variables(num_units, 'f_vars')
-        self.z_vars = self._create_gate_variables(num_units, 'z_vars')
-        self.o_vars = self._create_gate_variables(num_units, 'o_vars')
+        self.i_vars = self._create_gate_variables(num_units, elem_size, 'i_vars')
+        self.f_vars = self._create_gate_variables(num_units, elem_size, 'f_vars')
+        self.z_vars = self._create_gate_variables(num_units, elem_size, 'z_vars')
+        self.o_vars = self._create_gate_variables(num_units, elem_size, 'o_vars')
 
-        self.i_base_vars = self._create_gate_variables(num_units, 'i_base_vars')
-        self.f_base_vars = self._create_gate_variables(num_units, 'f_base_vars')
+        self.i_base_vars = self._create_gate_variables(num_units, elem_size, 'i_base_vars')
+        self.f_base_vars = self._create_gate_variables(num_units, elem_size, 'f_base_vars')
 
-        self.decay_vars = self._create_gate_variables(num_units, 'decay_vars')
+        self.decay_vars = self._create_gate_variables(num_units, elem_size, 'decay_vars')
         
-    def _create_gate_variables(self, num_units, name): # TODO initializers
-        with tf.variable_scope(name):
-            W = tf.get_variable('W', [None, num_units]) # TODO possibly bad shape
+    def _create_gate_variables(self, num_units, elem_size, name): # TODO parametrize initializers
+        with tf.variable_scope(name, initializer=tf.glorot_normal_initializer()):
+            W = tf.get_variable('W', [num_units, elem_size])
             U = tf.get_variable('U', [num_units] * 2)
-            d = tf.get_variable('d')
+            d = tf.get_variable('d', [num_units])
         return W, U, d
 
     def _create_gate(self, W, U, d, x, h_init, activation, name):
-        return activation(W * x + U * h_init + d, name=name)
+        return activation(
+            tf.squeeze( # TODO check if this is efficient
+                tf.matmul(W, tf.reshape(x, [-1, 1])) + tf.matmul(U, tf.reshape(h_init, [-1, 1]))
+            ) + d,
+            name=name
+        )
 
     def _build_graph(self, x, c_init, c_base_init, h_init):
         i = self._create_gate(*self.i_vars, x, h_init, tf.sigmoid, 'i_gate')
@@ -54,7 +58,7 @@ class ContLSTMCell:
         c_t = self._c_func(t, t_init, c, c_base, decay)
         h_t = self._h_func(c_t, o)
 
-        return c_t, h_t
+        return c_t, c_base, h_t
 
 
 # no batches
@@ -62,33 +66,40 @@ class ContLSTMNetwork:
     def __init__(self, cell):
         self.cell = cell
 
-    # def __call__(self, xs, ts):
-    #     states = [(np.zeros(self.cell.num_units),) * 2] # warning
-
-    #     for x, t in zip(xs, ts): # TODO xs and ts should be tuples for now
-    #         state = self.cell(x, t, states[-1])
-    #         states.append(state)
-
-    #     return states
-
     def __call__(self, x_seq, t_seq, training=True): # TODO training
-        states = [(np.zeros(self.cell.num_units),) * 2] # warning
-
         init_counter = tf.constant(0)
-        tf.while_loop(
-            cond=lambda idx: idx < x_seq.shape[0],
-            body=lambda idx: idx + 1, # TODO
-            loop_vars=[init_counter],
-            parallel_iterations=1
+
+        # paper warning - check boundary conditions
+        init_state = (
+            tf.zeros([self.cell.num_units], name='init_c'),
+            tf.zeros([self.cell.num_units], name='init_c_base'),
+            tf.zeros([self.cell.num_units], name='init_h')
         )
 
-    def _network_loop_body(self, idx, x_seq, t_seq, states):
+        h_acc = tf.reshape(init_state[2], [1, -1])
+
+        _, _, h_acc = tf.while_loop(
+            cond=lambda idx, _, __: idx < x_seq.shape[0],
+            body=lambda idx, prev_state, h_acc:
+                self._network_loop_body(idx, x_seq, t_seq, prev_state, h_acc),
+            loop_vars=[init_counter, init_state, h_acc],
+            shape_invariants=[
+                init_counter.shape,
+                (init_state[0].shape,) * 3,
+                tf.TensorShape([None, self.cell.num_units])
+            ]
+        )
+
+        return h_acc
+
+    def _network_loop_body(self, idx, x_seq, t_seq, prev_state, h_acc):
         x = x_seq[idx]
-        t = t_seq[idx]
-        t_init = None # TODO
-        c_init, c_base_init, h_init = states[-1]
+        t_init = t_seq[idx]
+        t = t_seq[idx + 1]
 
-        state = self.cell(x, t, t_init, c_init, c_base_init, h_init)
-        states.append(state)
+        c_init, c_base_init, h_init = prev_state
 
-        return idx + 1
+        c, c_base, h = self.cell(x, t, t_init, c_init, c_base_init, h_init)
+        h_acc = tf.concat([h_acc, [h]], axis=0)
+
+        return idx + 1, (c, c_base, h), h_acc

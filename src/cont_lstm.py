@@ -86,7 +86,7 @@ class ContLSTMTrainer:
         h_acc = tf.reshape(init_state[-1], [1, -1])
         inter_t_acc = h_acc
 
-        _, _, _, h_acc, inter_t_acc  = tf.while_loop(
+        _, _, _, h_acc, inter_t_acc = tf.while_loop(
             cond=lambda base_idx, inter_t_idx, *_: tf.logical_or(
                 base_idx < x_seq.shape[0],
                 inter_t_idx < inter_t_seq.shape[0]

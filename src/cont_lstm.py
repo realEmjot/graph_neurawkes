@@ -71,6 +71,8 @@ class ContLSTMTrainer:
         self.elem_size = cell.elem_size
 
     def train(self, x_seq, t_seq, inter_t_seq):
+        x_seq = tf.one_hot(x_seq + 1, self.elem_size)
+
         init_counter = tf.constant(0)
 
         # paper warning - check boundary conditions

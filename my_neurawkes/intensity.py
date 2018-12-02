@@ -1,5 +1,5 @@
 import tensorflow as tf
-from cont_lstm import ContLSTMCell, ContLSTMTrainer
+from .cont_lstm import ContLSTMCell, ContLSTMTrainer
 
 
 class Intensity:

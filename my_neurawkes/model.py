@@ -6,7 +6,6 @@ from .intensity import Intensity
 
 
 class Neurawkes:
-
     def __init__(self, num_units, num_types):
         self._cell = ContLSTMCell(num_units, num_types + 1)
         self._trainer = ContLSTMTrainer(self._cell)
@@ -26,7 +25,6 @@ class Neurawkes:
         for epoch_id in progress_bar:
             _, train_lhd = sess.run([train_step, likelihood])
             progress_bar.set_postfix_str(f'Likelihood: {train_lhd}')
-
 
     def _get_likelihood(self, x_seq, h_base, h_inter, N, T):
         _, pos_lhd = tf.map_fn(

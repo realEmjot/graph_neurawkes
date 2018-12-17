@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 
-# no batches
+
 class ContLSTMCell:
     def __init__(self, num_units, elem_size):
         self.num_units = num_units
@@ -38,31 +38,31 @@ class ContLSTMCell:
         c_t = self._c_func(t, t_init, c, c_base, decay)
         h_t = self._h_func(c_t, o)
 
-        return c_t, c_base, h_t
+        return c_t, c_base, h_t # c_base returned here for convenience
         
     def _create_gate_variables(self, num_units, elem_size, name): # TODO parametrize initializers
         with tf.variable_scope(name, initializer=tf.glorot_normal_initializer()):
-            W = tf.get_variable('W', [num_units, elem_size])
+            W = tf.get_variable('W', [elem_size, num_units])
             U = tf.get_variable('U', [num_units] * 2)
             d = tf.get_variable('d', [num_units])
         return W, U, d
 
     def _create_gate(self, W, U, d, x, h_init, activation, name):
         return activation(
-            tf.squeeze( # TODO check if this is efficient
-                tf.matmul(W, tf.reshape(x, [-1, 1])) + tf.matmul(U, tf.reshape(h_init, [-1, 1]))
-            ) + d,
+            tf.matmul(x, W) + tf.matmul(h_init, U) + d,
             name=name
         )
 
     def _c_func(self, t_init, t, c, c_base, decay):
-        return c_base + (c - c_base) * tf.exp(-decay * (t - t_init))
+        return c_base + (c - c_base) * tf.exp(
+            -decay * tf.expand_dims(t - t_init, -1)
+        )
 
     def _h_func(self, c_t, o):
         return o * (2 * tf.sigmoid(2 * c_t) - 1)
 
 
-# no batches
+
 class ContLSTMTrainer:
     def __init__(self, cell):
         self.cell = cell
@@ -70,100 +70,213 @@ class ContLSTMTrainer:
         self.num_units = cell.num_units
         self.elem_size = cell.elem_size
 
-    def train(self, x_seq, t_seq, inter_t_seq):
+    def train(self, x_seq, t_seq, inter_t_seq, T):
+        batch_size = tf.shape(x_seq)[0]
         x_seq = tf.one_hot(x_seq + 1, self.elem_size)
 
-        init_counter = tf.constant(0)
+        bos_x = tf.zeros([batch_size, self.elem_size])
+        bos_t = tf.zeros([batch_size])
 
-        # paper warning - check boundary conditions
         init_state = (
-            tf.one_hot(0, self.elem_size), # BOS x
-            tf.constant(0., dtype=tf.float32), # BOS t
-            tf.zeros([self.cell.num_units], name='init_c'),
-            tf.zeros([self.cell.num_units], name='init_c_base'),
-            tf.zeros([self.cell.num_units], name='init_h')
+            tf.zeros([batch_size, self.num_units], name='init_c'),
+            tf.zeros([batch_size, self.num_units], name='init_c_base'),
+            tf.zeros([batch_size, self.num_units], name='init_h')
         )
-        init_graph_vars = self.cell.build_graph(*init_state)
 
-        h_acc = tf.reshape(init_state[-1], [1, -1])
-        inter_t_acc = h_acc
+        inter_t_mask = self._get_inter_t_mask(t_seq, inter_t_seq, T)
+        
+        #########################
 
-        _, _, _, h_acc, inter_t_acc = tf.while_loop(
-            cond=lambda base_idx, inter_t_idx, *_: tf.logical_or(
-                base_idx < x_seq.shape[0],
-                inter_t_idx < inter_t_seq.shape[0]
-            ),
-            body=lambda base_idx, inter_t_idx, graph_vars, h_acc, inter_t_acc:
-                self._train_loop_body(
-                    base_idx,
-                    inter_t_idx,
+        graph_vars = self.cell.build_graph(bos_x, bos_t, *init_state)
+        init_inter_h, init_count = self._get_inter_h_for_step(
+            0, inter_t_seq, inter_t_mask, graph_vars
+        )
+
+        #########################
+
+        h_acc = tf.zeros([batch_size, 0, self.num_units])
+        inter_h_acc = init_inter_h
+        slice_acc = tf.expand_dims(init_count, 1)
+
+        init_counter = tf.constant(0)
+        _, _, h_acc, inter_h_acc, slice_acc = tf.while_loop(
+            cond=lambda idx, *_: idx < x_seq.shape[1],
+            body=lambda idx, graph_vars, h_acc, inter_h_acc, slice_acc:
+                self._train_loop(
+                    idx,
                     x_seq,
                     t_seq,
                     inter_t_seq,
-                    init_graph_vars,
+                    inter_t_mask[1:],
+                    graph_vars,
                     h_acc,
-                    inter_t_acc
+                    inter_h_acc,
+                    slice_acc
                 ),
             loop_vars=[
-                init_counter, init_counter, init_graph_vars, h_acc, inter_t_acc
+                init_counter, graph_vars, h_acc, inter_h_acc, slice_acc
             ],
             shape_invariants=[
                 init_counter.shape,
-                init_counter.shape,
-                tuple(var.shape for var in init_graph_vars),
-                tf.TensorShape([None, self.cell.num_units]),
-                tf.TensorShape([None, self.cell.num_units])
+                tuple(var.shape for var in graph_vars),
+                tf.TensorShape([h_acc.shape[0], None, h_acc.shape[2]]),
+                tf.TensorShape([None, inter_h_acc.shape[1]]),
+                tf.TensorShape([slice_acc.shape[0], None, slice_acc.shape[2]])
             ]
         )
 
-        return h_acc[1:], inter_t_acc[1:]
+        return h_acc, self._reshape_inter_h_acc(inter_h_acc, slice_acc)
 
-    def _train_loop_body(self, base_idx, inter_t_idx, x_seq, t_seq, inter_t_seq,
-              graph_vars, h_acc, inter_t_acc):
-        base_not_overflown = base_idx < x_seq.shape[0]
-        inter_not_overflown = inter_t_idx < inter_t_seq.shape[0]
-        base_or_inter = tf.cond(
-            pred=tf.logical_and(base_not_overflown, inter_not_overflown),
-            true_fn=lambda: t_seq[base_idx] < inter_t_seq[inter_t_idx],
-            false_fn=lambda: base_not_overflown
-        )
 
-        return tf.cond(
-            pred=base_or_inter,
-            true_fn=lambda: self._base_case(base_idx, inter_t_idx, x_seq, t_seq,
-                graph_vars, h_acc, inter_t_acc),
-            false_fn=lambda: self._inter_case(base_idx, inter_t_idx, inter_t_seq,
-                graph_vars, h_acc, inter_t_acc)
-        )
-
-    def _base_case(self, base_idx, inter_t_idx, x_seq, t_seq,
-                  graph_vars, h_acc, inter_t_acc):
-        x = x_seq[base_idx]
-        t = t_seq[base_idx]
+    def _train_loop(self, idx, x_seq, t_seq, inter_t_seq, inter_t_mask,
+                    graph_vars, h_acc, inter_h_acc, slice_acc):
+        x = x_seq[:, idx]
+        t = t_seq[:, idx]
 
         c, c_base, h = self.cell.get_time_dependent_vars(t, graph_vars)
+        h_acc = tf.concat([h_acc, tf.expand_dims(h, 1)], axis=1)
         graph_vars = self.cell.build_graph(x, t, c, c_base, h)
-        h_acc = tf.concat([h_acc, [h]], axis=0)
 
-        return (
-            base_idx + 1,
-            inter_t_idx,
-            graph_vars,
-            h_acc,
-            inter_t_acc
+        inter_h, slices = self._get_inter_h_for_step(
+            idx, inter_t_seq, inter_t_mask, graph_vars
+        )
+        inter_h_acc = tf.concat([inter_h_acc, inter_h], axis=0)
+        slices += slice_acc[-1, -1, -1]
+        slice_acc = tf.concat([slice_acc, tf.expand_dims(slices, 1)], axis=1)
+
+        return idx + 1, graph_vars, h_acc, inter_h_acc, slice_acc
+
+    def _get_inter_h_for_step(self, idx, inter_t_seq, inter_t_mask, graph_vars):
+        _, _, inter_h = self.cell.get_time_dependent_vars(
+            tf.transpose(inter_t_seq),
+            graph_vars
+        )
+        inter_h = tf.transpose(inter_h, [1, 0 ,2])
+
+        curr_inter_t_mask = inter_t_mask[idx]
+
+        curr_counts = tf.count_nonzero(curr_inter_t_mask, axis=1)
+        curr_slices = self._convert_counts_to_slices(curr_counts)
+
+        return tf.boolean_mask(inter_h, curr_inter_t_mask), curr_slices
+
+    def _reshape_inter_h_acc(self, inter_h_acc, slice_acc): #TODO probably slow
+        def gather_shit(idx, acc, slices):
+            s = slices[idx]
+            return idx + 1, tf.concat([acc, inter_h_acc[s[0]:s[1]]], axis=0)
+
+        init_idx = tf.constant(0)
+        acc = tf.zeros([0, self.num_units])
+        slices_len = tf.shape(slice_acc)[1]
+
+        return tf.map_fn(
+            fn=lambda slices: tf.while_loop(
+                cond=lambda idx, *_: idx < slices_len,
+                body=lambda idx, acc: gather_shit(idx, acc, slices),
+                loop_vars=[init_idx, acc],
+                shape_invariants=[
+                    init_idx.shape, tf.TensorShape([None, acc.shape[1]])
+                ]
+            )[1],
+            elems=slice_acc,
+            dtype=inter_h_acc.dtype
+        ) 
+
+    def _convert_counts_to_slices(self, counts):
+        inc = tf.scan(
+            fn=lambda acc, x: acc + x,
+            elems=counts,
+            initializer=tf.constant(0, dtype=tf.int64)
         )
 
-    def _inter_case(self, base_idx, inter_t_idx, inter_t_seq,
-                   graph_vars, h_acc, inter_t_acc):
-        t = inter_t_seq[inter_t_idx]
+        return tf.stack([
+            tf.concat([[0], inc[:-1]], axis=0),
+            inc
+        ], axis=1)
 
-        _, _, h = self.cell.get_time_dependent_vars(t, graph_vars)
-        inter_t_acc = tf.concat([inter_t_acc, [h]], axis=0)
-
-        return (
-            base_idx,
-            inter_t_idx + 1,
-            graph_vars,
-            h_acc,
-            inter_t_acc
+    def _get_inter_t_mask(self, t_seq, inter_t_seq, T):
+        transformed_t_seq = tf.expand_dims(
+            tf.transpose(
+                tf.pad(t_seq, [[0, 0], [1, 0]])
+            ),
+            -1
         )
+
+        def get_single_mask(curr_t, next_t):
+            return tf.logical_and(curr_t < inter_t_seq, inter_t_seq <= next_t)
+
+        return tf.map_fn(
+            fn=lambda elems: get_single_mask(*elems),
+            elems=(
+                transformed_t_seq,
+                tf.pad(
+                    transformed_t_seq[1:],
+                    [[0, 1], [0, 0], [0, 0]],
+                    constant_values=T
+                )
+            ),
+            dtype=tf.bool
+        )
+        
+
+
+
+# seq_len = 4
+# elem_size = 3
+# num_units = 5
+# T=2.5
+
+# t_seq = tf.constant([[0.9, 1.3, 2.1], [0.5, 1.1, 1.9]])
+# t_seq = tf.placeholder(dtype=tf.float32, shape=[None, seq_len])
+# x_seq = tf.constant([[0, 1, 2], [0, 0, 2]])
+# x_seq = tf.placeholder(tf.int32, [None, seq_len])
+# inter_t_seq = tf.random.uniform([2, 10], maxval=T)
+
+# x = tf.placeholder(dtype=tf.float32, shape=[None, elem_size])
+# x = tf.constant([[1, 0, 0], [0, 1, 0]], dtype=tf.float32)
+# t = tf.constant([])
+# batch_size = tf.shape(x)[0]
+
+# cell = ContLSTMCell(num_units, elem_size + 1)
+
+
+# t_init = tf.random_uniform([batch_size])
+# c_init = tf.random.uniform([batch_size, num_units])
+# c_base_init = tf.random.uniform([batch_size, num_units])
+# h_init = tf.random.uniform([batch_size, num_units])
+
+
+# graph_vars = cell.build_graph(x, t_init, c_init, c_base_init, h_init)
+# lol = cell.get_time_dependent_vars(t, graph_vars)
+# print(lol)
+
+# t = tf.random.uniform([20, batch_size])
+# c_t, c_base, h_t = cell.get_time_dependent_vars(t, graph_vars)
+# print(h_t)
+
+
+# inter_t_seq = tf.placeholder(tf.float32, [None, 10])
+# trainer = ContLSTMTrainer(cell)
+
+# mask = trainer._get_inter_t_mask(t_seq, inter_t_seq, 3.)
+# print(mask)
+
+
+# kek = trainer.train(x_seq, t_seq, inter_t_seq, T)
+# print(kek)
+
+# a = tf.constant([[1,2,3,4], [5,6,7,8]])
+# b = tf.concat([a, a[2:2]], axis=0)
+# print(b)
+
+# with tf.Session() as sess:
+#     sess.run(tf.initializers.global_variables())
+#     print(sess.run(b))
+#     print(sess.run(c * 3))
+#     print(sess.run(h_t, feed_dict={x: [[1., 0., 0.], [0., 0., 1.]]}).shape)
+#     mask, inter = sess.run([mask, inter_t_seq])
+#     print(mask)
+#     print(inter)
+#     print(sess.run(kek))
+#     print(sess.run(lol))
+    

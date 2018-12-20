@@ -161,7 +161,7 @@ class ContLSTMTrainer:
         return tf.boolean_mask(inter_h, curr_inter_t_mask), curr_slices
 
     def _reshape_inter_h_acc(self, inter_h_acc, slice_acc): #TODO probably slow
-        def gather_shit(idx, acc, slices):
+        def gather(idx, acc, slices):
             s = slices[idx]
             return idx + 1, tf.concat([acc, inter_h_acc[s[0]:s[1]]], axis=0)
 
@@ -172,7 +172,7 @@ class ContLSTMTrainer:
         return tf.map_fn(
             fn=lambda slices: tf.while_loop(
                 cond=lambda idx, *_: idx < slices_len,
-                body=lambda idx, acc: gather_shit(idx, acc, slices),
+                body=lambda idx, acc: gather(idx, acc, slices),
                 loop_vars=[init_idx, acc],
                 shape_invariants=[
                     init_idx.shape, tf.TensorShape([None, acc.shape[1]])
@@ -209,74 +209,11 @@ class ContLSTMTrainer:
             fn=lambda elems: get_single_mask(*elems),
             elems=(
                 transformed_t_seq,
-                tf.pad(
-                    transformed_t_seq[1:],
-                    [[0, 1], [0, 0], [0, 0]],
-                    constant_values=T
+                tf.concat(
+                    [transformed_t_seq[1:], [tf.expand_dims(T, -1)]],
+                    axis=0
                 )
             ),
             dtype=tf.bool
         )
-        
-
-
-
-# seq_len = 4
-# elem_size = 3
-# num_units = 5
-# T=2.5
-
-# t_seq = tf.constant([[0.9, 1.3, 2.1], [0.5, 1.1, 1.9]])
-# t_seq = tf.placeholder(dtype=tf.float32, shape=[None, seq_len])
-# x_seq = tf.constant([[0, 1, 2], [0, 0, 2]])
-# x_seq = tf.placeholder(tf.int32, [None, seq_len])
-# inter_t_seq = tf.random.uniform([2, 10], maxval=T)
-
-# x = tf.placeholder(dtype=tf.float32, shape=[None, elem_size])
-# x = tf.constant([[1, 0, 0], [0, 1, 0]], dtype=tf.float32)
-# t = tf.constant([])
-# batch_size = tf.shape(x)[0]
-
-# cell = ContLSTMCell(num_units, elem_size + 1)
-
-
-# t_init = tf.random_uniform([batch_size])
-# c_init = tf.random.uniform([batch_size, num_units])
-# c_base_init = tf.random.uniform([batch_size, num_units])
-# h_init = tf.random.uniform([batch_size, num_units])
-
-
-# graph_vars = cell.build_graph(x, t_init, c_init, c_base_init, h_init)
-# lol = cell.get_time_dependent_vars(t, graph_vars)
-# print(lol)
-
-# t = tf.random.uniform([20, batch_size])
-# c_t, c_base, h_t = cell.get_time_dependent_vars(t, graph_vars)
-# print(h_t)
-
-
-# inter_t_seq = tf.placeholder(tf.float32, [None, 10])
-# trainer = ContLSTMTrainer(cell)
-
-# mask = trainer._get_inter_t_mask(t_seq, inter_t_seq, 3.)
-# print(mask)
-
-
-# kek = trainer.train(x_seq, t_seq, inter_t_seq, T)
-# print(kek)
-
-# a = tf.constant([[1,2,3,4], [5,6,7,8]])
-# b = tf.concat([a, a[2:2]], axis=0)
-# print(b)
-
-# with tf.Session() as sess:
-#     sess.run(tf.initializers.global_variables())
-#     print(sess.run(b))
-#     print(sess.run(c * 3))
-#     print(sess.run(h_t, feed_dict={x: [[1., 0., 0.], [0., 0., 1.]]}).shape)
-#     mask, inter = sess.run([mask, inter_t_seq])
-#     print(mask)
-#     print(inter)
-#     print(sess.run(kek))
-#     print(sess.run(lol))
     

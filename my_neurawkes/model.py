@@ -12,8 +12,15 @@ class Neurawkes:
         self._intensity = Intensity(num_units, num_types)
 
     def train(self, sess, x_seq, t_seq, N, T, num_epochs):
-        inter_t_seq = tf.random.uniform([N], 0., T)
-        h_base, h_inter = self._trainer.train(x_seq, t_seq, inter_t_seq)
+        batch_size = tf.shape(x_seq)[0]
+
+        inter_t_seq = tf.map_fn(
+            fn=lambda idx: tf.random.uniform([N], 0., T[idx]),
+            elems=tf.range(batch_size),
+            dtype=tf.float32
+        )
+
+        h_base, h_inter = self._trainer.train(x_seq, t_seq, inter_t_seq, T)
         likelihood = self._get_likelihood(x_seq, h_base, h_inter, N, T)
 
         optimizer = tf.train.AdamOptimizer()
@@ -29,12 +36,14 @@ class Neurawkes:
     def _get_likelihood(self, x_seq, h_base, h_inter, N, T):
         _, pos_lhd = tf.map_fn(
             fn=lambda xh: (0, self._intensity.get_intensity_for_type(*xh)),
-            elems=(x_seq, h_base)
+            elems=(
+                tf.transpose(x_seq),
+                tf.transpose(h_base, [1, 0, 2])
+            )
         )
-        pos_lhd = tf.reduce_sum(tf.log(pos_lhd))
+        pos_lhd = tf.reduce_sum(tf.log(pos_lhd), axis=0)
 
-        neg_lhd = self._intensity.get_all_intesities_batched(h_inter)
-        neg_lhd = tf.reduce_sum(neg_lhd, axis=1)
-        neg_lhd = T * tf.reduce_sum(neg_lhd) / N
+        neg_lhd = self._intensity.get_all_intesities(h_inter)
+        neg_lhd = T * tf.einsum('ijk->i', neg_lhd) / N
 
-        return pos_lhd - neg_lhd
+        return tf.reduce_mean(pos_lhd - neg_lhd)

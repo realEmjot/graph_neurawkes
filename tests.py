@@ -1,14 +1,10 @@
 import tensorflow as tf
 from my_neurawkes import Neurawkes
+from data.utils import to_dataset
 
 
-x_seq = tf.constant([[1, 0, 2, 1], [0, 1, 1, 2]])
-t_seq = tf.constant([[1.1, 2.3, 3.5, 4.7], [0.5, 1.0, 3.0, 4.2]], dtype=tf.float32)
-
-N = 10
-T = tf.constant([5.0, 4.5])
-
-model = Neurawkes(10, 3)
+data_retweets = to_dataset('data/data_retweet', 'train')
+model = Neurawkes(100, 3)
 
 with tf.Session() as sess:
-    model.train(sess, x_seq, t_seq, N, T, 1000)
+    model.train(sess, data_retweets, 1., 1000, 10)

@@ -69,33 +69,37 @@ class Neurawkes:
 
         sess.run(tf.initializers.global_variables())
 
-        epoch_progress_bar = trange(num_epochs)
+        epoch_progress_bar = range(num_epochs)
         if dataset_size:
             num_iters = math.ceil(dataset_size / batch_size)
+        else:
+            epoch_progress_bar = trange(num_epochs, desc='Epoch')
 
         for epoch_id in epoch_progress_bar:
             if dataset_size:
-                iter_progress_bar = tqdm(total=num_iters, leave=False)
+                iter_progress_bar = tqdm(total=num_iters, desc=f'Epoch {epoch_id}')
 
             sess.run(iterator.initializer)
             while True:
                 try:
                     _, train_lhd = sess.run([train_step, likelihood])
-                    epoch_progress_bar.set_postfix_str(f'Epoch: {epoch_id}\tLikelihood: {train_lhd}')
-                    if dataset_size:
-                        iter_progress_bar.update()
                 except tf.errors.OutOfRangeError:
-                    if dataset_size:
-                        iter_progress_bar.close()
                     break
+
+                if dataset_size:
+                    iter_progress_bar.update()
+                    iter_progress_bar.set_postfix({'Likelihood': train_lhd})
+                else:
+                    epoch_progress_bar.set_postfix({'Likelihood': train_lhd})
 
     def _get_likelihood(self, x_seq, h_base, h_inter, N, T):
         def get_pos_lhd_for_batch_elem(x, h):
             mask = tf.not_equal(x, -1)
             x = tf.boolean_mask(x, mask)
             h = tf.boolean_mask(h, mask)
-            return tf.math.count_nonzero(mask, dtype=tf.float32), tf.reduce_sum(tf.log(
-                self._intensity.get_intensity_for_type(x, h)))
+            return tf.math.count_nonzero(mask, dtype=tf.float32), \
+                   tf.reduce_sum(tf.log(
+                        self._intensity.get_intensity_for_type(x, h)))
 
         seq_lens, pos_lhd = tf.map_fn(
             fn=lambda xh: get_pos_lhd_for_batch_elem(*xh),

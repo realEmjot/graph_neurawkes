@@ -1,17 +1,45 @@
+import math
+
 import tensorflow as tf
-from tqdm import trange
+from tqdm import tqdm, trange
 
 from .cont_lstm import ContLSTMCell, ContLSTMTrainer
 from .intensity import Intensity
 
 
 class Neurawkes:
+    """
+    This class is an implementation of Neural Hawkes model (proposed by _ in
+    their paper _), written in Google Tensorflow.
+    """
     def __init__(self, num_units, num_types):
+        """
+        Parameters:
+            num_units (int): size of modified LSTM model (CSTM); higher number
+                             means more expressive model, but training takes
+                             longer
+            num_types (int): number of different event types in data
+        """
         self._cell = ContLSTMCell(num_units, num_types + 1)
         self._trainer = ContLSTMTrainer(self._cell)
         self._intensity = Intensity(num_units, num_types)
 
-    def train(self, sess, dataset, N_ratio, num_epochs, batch_size):
+    def train(self, sess, dataset, N_ratio, num_epochs, batch_size,
+              dataset_size=None):
+        """
+        Model training.
+        Parameters:
+            sess (tf.Session): Tensorflow Session object
+            dataset (tf.Dataset): yet unbatched tf.Dataset, containing training
+                data; each element should be a tuple of three elements:
+                (event type sequence, event time-since-start sequence,
+                end-of-sequence time)
+            N_ratio (double): positive number, designated ratio between
+                negative and positive examples for likelihood function
+            num_epochs (int)
+            batch_size (int)
+            dataset_size (int) optional
+        """
         dataset = dataset.padded_batch(
             batch_size,
             padded_shapes=([None], [None], []),
@@ -29,7 +57,7 @@ class Neurawkes:
         N = N_ratio * tf.cast(tf.shape(x_seq)[1], tf.float32)
 
         inter_t_seq = tf.map_fn(
-            fn=lambda T: tf.random.uniform([tf.cast(N, tf.int32)], 0., T),
+            fn=lambda T: tf.random.uniform([tf.cast(N, tf.int32)], 1e-10, T),  # TODO hack
             elems=T
         )
 
@@ -41,14 +69,24 @@ class Neurawkes:
 
         sess.run(tf.initializers.global_variables())
 
-        progress_bar = trange(num_epochs)
-        for epoch_id in progress_bar:
+        epoch_progress_bar = trange(num_epochs)
+        if dataset_size:
+            num_iters = math.ceil(dataset_size / batch_size)
+
+        for epoch_id in epoch_progress_bar:
+            if dataset_size:
+                iter_progress_bar = tqdm(total=num_iters, leave=False)
+
             sess.run(iterator.initializer)
             while True:
                 try:
                     _, train_lhd = sess.run([train_step, likelihood])
-                    progress_bar.set_postfix_str(f'Likelihood: {train_lhd}')
+                    epoch_progress_bar.set_postfix_str(f'Likelihood: {train_lhd}')
+                    if dataset_size:
+                        iter_progress_bar.update()
                 except tf.errors.OutOfRangeError:
+                    if dataset_size:
+                        iter_progress_bar.close()
                     break
 
     def _get_likelihood(self, x_seq, h_base, h_inter, N, T):
@@ -56,15 +94,16 @@ class Neurawkes:
             mask = tf.not_equal(x, -1)
             x = tf.boolean_mask(x, mask)
             h = tf.boolean_mask(h, mask)
-            return 0, tf.reduce_sum(tf.log(
+            return tf.reduce_sum(tf.log(
                 self._intensity.get_intensity_for_type(x, h)))
 
-        _, pos_lhd = tf.map_fn(
+        pos_lhd = tf.map_fn(
             fn=lambda xh: get_pos_lhd_for_batch_elem(*xh),
             elems=(
                 x_seq,
                 h_base
-            )
+            ),
+            dtype=tf.float32
         )
 
         neg_lhd = self._intensity.get_all_intesities(h_inter)

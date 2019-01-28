@@ -81,7 +81,7 @@ class Neurawkes:
             while True:
                 try:
                     _, train_lhd = sess.run([train_step, likelihood])
-                    epoch_progress_bar.set_postfix_str(f'Likelihood: {train_lhd}')
+                    epoch_progress_bar.set_postfix_str(f'Epoch: {epoch_id}\tLikelihood: {train_lhd}')
                     if dataset_size:
                         iter_progress_bar.update()
                 except tf.errors.OutOfRangeError:
@@ -94,19 +94,19 @@ class Neurawkes:
             mask = tf.not_equal(x, -1)
             x = tf.boolean_mask(x, mask)
             h = tf.boolean_mask(h, mask)
-            return tf.reduce_sum(tf.log(
+            return tf.math.count_nonzero(mask, dtype=tf.float32), tf.reduce_sum(tf.log(
                 self._intensity.get_intensity_for_type(x, h)))
 
-        pos_lhd = tf.map_fn(
+        seq_lens, pos_lhd = tf.map_fn(
             fn=lambda xh: get_pos_lhd_for_batch_elem(*xh),
             elems=(
                 x_seq,
                 h_base
             ),
-            dtype=tf.float32
+            dtype=(tf.float32, tf.float32)
         )
 
         neg_lhd = self._intensity.get_all_intesities(h_inter)
         neg_lhd = T * tf.einsum('ijk->i', neg_lhd) / N
 
-        return tf.reduce_mean(pos_lhd - neg_lhd)
+        return tf.reduce_mean((pos_lhd - neg_lhd) / seq_lens)  # likelihood per event

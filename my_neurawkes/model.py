@@ -84,6 +84,8 @@ class Neurawkes:
                 try:
                     _, train_lhd = sess.run([train_step, likelihood])
                 except tf.errors.OutOfRangeError:
+                    if dataset_size:
+                        iter_progress_bar.close()
                     break
 
                 if dataset_size:

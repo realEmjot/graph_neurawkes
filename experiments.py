@@ -1,6 +1,6 @@
 import tensorflow as tf
 from my_neurawkes import Neurawkes
-from data.utils import to_dataset
+from data.neurawkes_data.utils import to_dataset
 
 
 def run_experiment(data_path, data_label='train'):

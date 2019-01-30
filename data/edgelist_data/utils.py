@@ -4,7 +4,7 @@ import tensorflow as tf
 
 
 def _get_pair_id(i, j, num_ids):
-    return 10 * i + j
+    return num_ids * i + j
 
 def _get_df(filepath):
     df = pd.read_csv(filepath, names=['sender', 'recipient', 'time'],
@@ -32,13 +32,22 @@ def _cut_df(df, difference_cut, min_len=2):
             dfs.append(df_slice)
     return dfs
 
-def to_event_dataset_naive(filepath):
-    df = _get_df(filepath)
-    event_ids = np.array([_get_pair_id(i, j, max(df.sender.max(), df.recipient.max()) + 1)
-                          for i, j in zip(df.sender, df.recipient)],
-                          dtype=np.int32)
+def _get_event_ids(df, num_ids):
+    return np.array([_get_pair_id(i, j, num_ids)
+                    for i, j in zip(df.sender, df.recipient)],
+                    dtype=np.int32)
 
-    ds = tf.data.Dataset.from_tensors((event_ids, df.time, df.time.max()))
+def to_event_dataset_naive(filepath, difference_cut=None):
+    df = _get_df(filepath)
+    num_ids = max(df.sender.max(), df.recipient.max()) + 1
+
+    if difference_cut:
+        dfs = _cut_df(df, difference_cut)
+        data = [(_get_event_ids(df, num_ids), df.time, df.time.max()) for df in dfs]
+        ds = tf.data.Dataset.from_generator(lambda: data, (tf.int32, tf.float32, tf.float32))
+        return ds, len(dfs)
+
+    ds = tf.data.Dataset.from_tensors((_get_event_ids(df, num_ids), df.time, df.time.max()))
     return ds, 1
 
 def to_event_dataset_sender_only(filepath, difference_cut=None):

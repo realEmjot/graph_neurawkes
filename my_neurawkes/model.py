@@ -41,13 +41,8 @@ class Neurawkes:
             batch_size (int)
             dataset_size (int) optional
         """
-        dataset = dataset.padded_batch(
-            batch_size,
-            padded_shapes=([None], [None], []),
-            padding_values=(-1, 0., 0.)
-        )
         iterator = tf.data.Iterator.from_structure(dataset.output_types,
-                                                   dataset.output_shapes)
+                                                   ([None, None], [None, None], [None]))
         x_seq, t_seq, T = iterator.get_next()
 
         T_max = tf.reduce_max(T)
@@ -80,27 +75,33 @@ class Neurawkes:
         val_init_op = None
         if dataset_size and val_ratio:
             val_size = int(dataset_size * val_ratio)
-            train_init_op = iterator.make_initializer(dataset.skip(val_size))
-            val_init_op = iterator.make_initializer(dataset.take(val_size))
-        else:
-            train_init_op = iterator.make_initializer(dataset)
+            num_iters = math.ceil((dataset_size - val_size) / batch_size)
+            num_iters_val = math.ceil((val_size) / batch_size)
+
+            val_init_op = iterator.make_initializer(
+                self._pad_dataset(dataset.take(val_size), batch_size)
+            )
+            dataset = dataset.skip(val_size)
+        train_init_op = iterator.make_initializer(
+            self._pad_dataset(dataset, batch_size)
+        )
 
         train_lhd_acc = []
         val_lhd_acc = []
         for epoch_id in epoch_progress_bar:
             if dataset_size:
-                iter_progress_bar = tqdm(total=num_iters, desc=f'Epoch {epoch_id}')
+                iter_progress_bar = tqdm(total=num_iters, desc=f'Epoch {epoch_id}', leave=False)
 
             sess.run(train_init_op)
             while True:
                 try:
                     _, train_lhd = sess.run([train_step, likelihood])
-                    train_lhd_acc.append(train_lhd)
                 except tf.errors.OutOfRangeError:
                     if dataset_size:
                         iter_progress_bar.close()
                     break
 
+                train_lhd_acc.append(train_lhd)
                 if dataset_size:
                     iter_progress_bar.update()
                     iter_progress_bar.set_postfix({'Likelihood': train_lhd})
@@ -110,18 +111,30 @@ class Neurawkes:
             if val_init_op:
                 sess.run(val_init_op)
                 val_lhds = []
+                val_progress_bar = tqdm(total=num_iters_val, desc=f'Validation...')
                 while True:
                     try:
                         val_lhd = sess.run(likelihood)
-                        val_lhds.append(val_lhd)
                     except tf.errors.OutOfRangeError:
                         mean_val_lhd = np.array(val_lhds).mean()
                         val_lhd_acc.append(mean_val_lhd)
-                        iter_progress_bar.set_postfix(
+                        val_progress_bar.set_description(f'Epoch {epoch_id}')
+                        val_progress_bar.set_postfix(
                             {'Validation likelihood': mean_val_lhd})
+                        val_progress_bar.close()
                         break
 
+                    val_progress_bar.update()
+                    val_lhds.append(val_lhd)
+
         return train_lhd_acc, val_lhd_acc
+
+    def _pad_dataset(self, ds, batch_size):
+        return ds.padded_batch(
+            batch_size,
+            padded_shapes=([None], [None], []),
+            padding_values=(-1, 0., 0.)
+        )
 
     def _get_likelihood(self, x_seq, h_base, h_inter, N, T):
         def get_pos_lhd_for_batch_elem(x, h):

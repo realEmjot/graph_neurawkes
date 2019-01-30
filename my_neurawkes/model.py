@@ -1,5 +1,6 @@
 import math
 
+import numpy as np
 import tensorflow as tf
 from tqdm import tqdm, trange
 
@@ -25,7 +26,7 @@ class Neurawkes:
         self._intensity = Intensity(num_units, num_types)
 
     def train(self, sess, dataset, N_ratio, num_epochs, batch_size,
-              dataset_size=None):
+              dataset_size=None, val_ratio=None):
         """
         Model training.
         Parameters:
@@ -45,7 +46,8 @@ class Neurawkes:
             padded_shapes=([None], [None], []),
             padding_values=(-1, 0., 0.)
         )
-        iterator = dataset.make_initializable_iterator()
+        iterator = tf.data.Iterator.from_structure(dataset.output_types,
+                                                   dataset.output_shapes)
         x_seq, t_seq, T = iterator.get_next()
 
         T_max = tf.reduce_max(T)
@@ -75,14 +77,25 @@ class Neurawkes:
         else:
             epoch_progress_bar = trange(num_epochs, desc='Epoch')
 
+        val_init_op = None
+        if dataset_size and val_ratio:
+            val_size = int(dataset_size * val_ratio)
+            train_init_op = iterator.make_initializer(dataset.skip(val_size))
+            val_init_op = iterator.make_initializer(dataset.take(val_size))
+        else:
+            train_init_op = iterator.make_initializer(dataset)
+
+        train_lhd_acc = []
+        val_lhd_acc = []
         for epoch_id in epoch_progress_bar:
             if dataset_size:
                 iter_progress_bar = tqdm(total=num_iters, desc=f'Epoch {epoch_id}')
 
-            sess.run(iterator.initializer)
+            sess.run(train_init_op)
             while True:
                 try:
                     _, train_lhd = sess.run([train_step, likelihood])
+                    train_lhd_acc.append(train_lhd)
                 except tf.errors.OutOfRangeError:
                     if dataset_size:
                         iter_progress_bar.close()
@@ -93,6 +106,22 @@ class Neurawkes:
                     iter_progress_bar.set_postfix({'Likelihood': train_lhd})
                 else:
                     epoch_progress_bar.set_postfix({'Likelihood': train_lhd})
+
+            if val_init_op:
+                sess.run(val_init_op)
+                val_lhds = []
+                while True:
+                    try:
+                        val_lhd = sess.run(likelihood)
+                        val_lhds.append(val_lhd)
+                    except tf.errors.OutOfRangeError:
+                        mean_val_lhd = np.array(val_lhds).mean()
+                        val_lhd_acc.append(mean_val_lhd)
+                        iter_progress_bar.set_postfix(
+                            {'Validation likelihood': mean_val_lhd})
+                        break
+
+        return train_lhd_acc, val_lhd_acc
 
     def _get_likelihood(self, x_seq, h_base, h_inter, N, T):
         def get_pos_lhd_for_batch_elem(x, h):

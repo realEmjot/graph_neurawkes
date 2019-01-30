@@ -8,7 +8,7 @@ def run_experiment(data_path, data_label='train'):
     model = Neurawkes(128, 899)
 
     with tf.Session() as sess:
-        model.train(sess, data_fb, 1., 1, 1, data_size)
+        model.train(sess, data_fb, 1., 1, 1, data_size, 0.2)
 
 if __name__ == '__main__':
     run_experiment('data/edgelist_data/fb-forum.txt')

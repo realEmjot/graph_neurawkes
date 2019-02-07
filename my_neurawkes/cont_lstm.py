@@ -69,7 +69,7 @@ class ContLSTMTrainer:
         self.num_units = cell.num_units
         self.elem_size = cell.elem_size
 
-    def train(self, x_seq, t_seq, inter_t_seq, T_max):
+    def get_hidden_states_for_training(self, x_seq, t_seq, inter_t_seq, T_max):
         batch_size = tf.shape(x_seq)[0]
         x_seq = tf.one_hot(x_seq + 1, self.elem_size)
 

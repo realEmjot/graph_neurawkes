@@ -58,7 +58,8 @@ class Neurawkes:
             elems=T
         )
 
-        h_base, h_inter = self._trainer.train(x_seq, t_seq, inter_t_seq, T_max)
+        h_base, h_inter = self._trainer.get_hidden_states_for_training(
+            x_seq, t_seq, inter_t_seq, T_max)
         likelihood = self._get_likelihood(x_seq, h_base, h_inter, N, T)
 
         optimizer = tf.train.AdamOptimizer()

@@ -199,26 +199,16 @@ class ContLSTMTrainer:
         ], axis=1)
 
     def _get_inter_t_mask(self, t_seq, inter_t_seq, T_max):
-        transformed_t_seq = tf.expand_dims(
-            tf.transpose(
-                tf.pad(t_seq, [[0, 0], [1, 0]])
-            ),
-            -1
+        inter_t_seq = tf.expand_dims(inter_t_seq, -1)
+
+        left_bound_seq = tf.expand_dims(
+            tf.pad(t_seq, [[0, 0], [1, 0]], constant_values=0), 1
+        )
+        right_bound_seq = tf.expand_dims(
+            tf.pad(t_seq, [[0, 0], [0, 1]], constant_values=T_max), 1
         )
 
-        def get_single_mask(curr_t, next_t):
-            return tf.logical_and(curr_t < inter_t_seq, inter_t_seq <= next_t)
-
-        return tf.map_fn(
-            fn=lambda elems: get_single_mask(*elems),
-            elems=(
-                transformed_t_seq,
-                tf.pad(
-                    transformed_t_seq[1:],
-                    [[0, 1], [0, 0], [0, 0]],
-                    constant_values=T_max
-                )
-            ),
-            dtype=tf.bool
+        mask = tf.logical_and(
+            left_bound_seq < inter_t_seq, inter_t_seq <= right_bound_seq
         )
-    
+        return tf.transpose(mask, (2, 0, 1))

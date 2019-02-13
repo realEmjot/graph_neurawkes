@@ -45,8 +45,6 @@ class Neurawkes:
                                                    ([None, None], [None, None], [None]))
         x_seq, t_seq, T = iterator.get_next()
 
-        x_seq = tf.one_hot(x_seq + 1, self._cell.elem_size)
-
         T_max = tf.reduce_max(T)
         t_seq = tf.where(
             tf.not_equal(x_seq, -1),
@@ -60,8 +58,9 @@ class Neurawkes:
             elems=T
         )
 
+        x_seq_oh = tf.one_hot(x_seq + 1, self._cell.elem_size)
         h_base, h_inter = self._trainer.get_hidden_states_for_training(
-            x_seq, t_seq, inter_t_seq, T_max)
+            x_seq_oh, t_seq, inter_t_seq, T_max)
         likelihood = self._get_likelihood(x_seq, h_base, h_inter, N, T)
 
         optimizer = tf.train.AdamOptimizer()

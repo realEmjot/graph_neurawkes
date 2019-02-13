@@ -16,7 +16,7 @@ class ContLSTMCell:
 
         self.decay_vars = self._create_gate_variables(num_units, elem_size, 'decay_vars')
 
-    def build_graph(self, x, t_init, c_init, c_base_init, h_init): # t_init here for simplified unrolling
+    def build_graph(self, x, t_init, c_init, c_base_init, h_init): # t_init here for convenience
         i = self._create_gate(*self.i_vars, x, h_init, tf.sigmoid, 'i_gate')
         f = self._create_gate(*self.f_vars, x, h_init, tf.sigmoid, 'f_gate')
         z = self._create_gate(*self.z_vars, x, h_init, tf.tanh, 'z_gate')
@@ -71,7 +71,6 @@ class ContLSTMTrainer:
 
     def get_hidden_states_for_training(self, x_seq, t_seq, inter_t_seq, T_max):
         batch_size = tf.shape(x_seq)[0]
-        x_seq = tf.one_hot(x_seq + 1, self.elem_size)
 
         bos_x = tf.one_hot(tf.zeros([batch_size], tf.int32), self.elem_size)
         bos_t = tf.zeros([batch_size])
@@ -87,7 +86,7 @@ class ContLSTMTrainer:
         #########################
 
         graph_vars = self.cell.build_graph(bos_x, bos_t, *init_state)
-        init_inter_h, init_count = self._get_inter_h_for_step(
+        init_inter_h, init_slices = self._get_inter_h_for_step(
             0, inter_t_seq, inter_t_mask, graph_vars
         )
 
@@ -95,7 +94,7 @@ class ContLSTMTrainer:
 
         h_acc = tf.zeros([batch_size, 0, self.num_units])
         inter_h_acc = init_inter_h
-        slice_acc = tf.expand_dims(init_count, 1)
+        slice_acc = tf.expand_dims(init_slices, 1)
 
         init_counter = tf.constant(0)
         _, _, h_acc, inter_h_acc, slice_acc = tf.while_loop(
@@ -189,8 +188,7 @@ class ContLSTMTrainer:
     def _convert_counts_to_slices(self, counts):
         inc = tf.scan(
             fn=lambda acc, x: acc + x,
-            elems=counts,
-            initializer=tf.constant(0, dtype=tf.int64)
+            elems=counts
         )
 
         return tf.stack([

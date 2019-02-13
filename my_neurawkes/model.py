@@ -45,6 +45,8 @@ class Neurawkes:
                                                    ([None, None], [None, None], [None]))
         x_seq, t_seq, T = iterator.get_next()
 
+        x_seq = tf.one_hot(x_seq + 1, self._cell.elem_size)
+
         T_max = tf.reduce_max(T)
         t_seq = tf.where(
             tf.not_equal(x_seq, -1),

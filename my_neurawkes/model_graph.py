@@ -5,7 +5,7 @@ import tensorflow as tf
 from tqdm import tqdm, trange
 
 from .cont_lstm import ContLSTMCell, ContLSTMTrainer
-from .intensity_graph import IntensityGraph
+from .intensity_graph import GraphIntensity
 
 
 class GraphNeurawkes:
@@ -15,7 +15,7 @@ class GraphNeurawkes:
 
         self._cell = ContLSTMCell(num_units, 2 * num_vertices + 1)
         self._trainer = ContLSTMTrainer(self._cell)
-        self._intensity = IntensityGraph(num_units, num_vertices, vstate_len)
+        self._intensity = GraphIntensity(num_units, num_vertices, vstate_len)
 
     def train(self, sess, dataset, N_ratio, num_epochs, batch_size,
               dataset_size=None, val_ratio=None):

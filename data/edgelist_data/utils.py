@@ -60,3 +60,14 @@ def to_event_dataset_sender_only(filepath, difference_cut=None):
 
     ds = tf.data.Dataset.from_tensors((df.sender, df.time, df.time.max()))
     return ds, 1
+
+def to_event_dataset_full(filepath, difference_cut=None):
+    df = _get_df(filepath)
+    if difference_cut:
+        dfs = _cut_df(df, difference_cut)
+        data = [(df.sender, df.recipient, df.time, df.time.max()) for df in dfs]
+        ds = tf.data.Dataset.from_generator(lambda: data, (tf.int32, tf.int32, tf.float32, tf.float32))
+        return ds, len(dfs)
+
+    ds = tf.data.Dataset.from_tensors((df.sender, df.recipient, df.time, df.time.max()))
+    return ds, 1

@@ -2,7 +2,7 @@ import tensorflow as tf
 from .cont_lstm import ContLSTMCell, ContLSTMTrainer
 
 
-class IntensityGraph:
+class GraphIntensity:
     def __init__(self, num_units, num_vertices, vstate_len, self_links=False):
         self._num_vertices = num_vertices
         self._self_links = self_links

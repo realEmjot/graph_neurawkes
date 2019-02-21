@@ -1,2 +1,1 @@
-from .model import Neurawkes
-from .model_graph import GraphNeurawkes
+from .models import Neurawkes, GraphNeurawkes

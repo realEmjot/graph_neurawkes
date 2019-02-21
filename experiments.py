@@ -1,5 +1,5 @@
 import tensorflow as tf
-from my_neurawkes import Neurawkes, GraphNeurawkes
+from src import Neurawkes, GraphNeurawkes
 from data.edgelist_data.utils import to_event_dataset_sender_only, to_event_dataset_naive, to_event_dataset_full
 from data.neurawkes_data.utils import to_dataset
 

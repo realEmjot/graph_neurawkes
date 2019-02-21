@@ -88,6 +88,7 @@ class ContLSTMModel(abc.ABC):
 
     def _preprocess_times_data(self, t_seq, T, N_ratio):
         T_max = tf.reduce_max(T)
+        N = N_ratio * tf.cast(tf.shape(t_seq)[1], tf.float32)
 
         t_seq = tf.where(
             tf.not_equal(t_seq, -1.),
@@ -98,8 +99,6 @@ class ContLSTMModel(abc.ABC):
             fn=lambda T: tf.random.uniform([tf.cast(N, tf.int32)], 1e-10, T),  # TODO hack
             elems=T
         )
-
-        N = N_ratio * tf.cast(tf.shape(t_seq)[1], tf.float32)
 
         return t_seq, inter_t_seq, T_max, N
 

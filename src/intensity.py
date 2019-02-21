@@ -70,11 +70,11 @@ class GraphIntensity:
             raise NotImplementedError
         else:
             indices = tf.range(self._num_vertices)
-            def lol(s, x):
+            def apply_mask(s, x):
                 return tf.boolean_mask(s, tf.not_equal(indices, x))
 
             all_states = tf.map_fn(
-                fn=lambda sx: lol(*sx),
+                fn=lambda sx: apply_mask(*sx),
                 elems=(all_states, x1_seq),
                 dtype=all_states.dtype
             )

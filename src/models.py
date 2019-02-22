@@ -16,7 +16,8 @@ class ContLSTMModel(abc.ABC):
 
     def train(self, iterator, likelihood, 
               sess, dataset, N_ratio, num_epochs, batch_size,
-              dataset_size=None, val_ratio=None):
+              dataset_size=None, val_ratio=None,
+              savepath=None):
 
         optimizer = tf.train.AdamOptimizer()
         train_step = optimizer.minimize(-likelihood)
@@ -45,9 +46,18 @@ class ContLSTMModel(abc.ABC):
 
         train_lhd_acc = []
         val_lhd_acc = []
+
+        if savepath:
+            best_lhd = -np.inf
+            saver = tf.train.Saver()
+
         for epoch_id in epoch_progress_bar:
             if dataset_size:
-                iter_progress_bar = tqdm(total=num_iters, desc=f'Epoch {epoch_id}', leave=False)
+                iter_progress_bar = tqdm(
+                    total=num_iters,
+                    desc=f'Epoch {epoch_id}',
+                    leave=val_init_op is None
+                )
 
             sess.run(train_init_op)
             while True:
@@ -59,6 +69,7 @@ class ContLSTMModel(abc.ABC):
                     break
 
                 train_lhd_acc.append(train_lhd)
+
                 if dataset_size:
                     iter_progress_bar.update()
                     iter_progress_bar.set_postfix({'Likelihood': train_lhd})
@@ -83,6 +94,16 @@ class ContLSTMModel(abc.ABC):
 
                     val_progress_bar.update()
                     val_lhds.append(val_lhd)
+
+            if savepath:
+                if val_init_op:
+                    current_lhd = val_lhd
+                else:
+                    current_lhd = train_lhd
+
+                if current_lhd > best_lhd:
+                    best_lhd = current_lhd
+                    saver.save(sess, savepath)
 
         return train_lhd_acc, val_lhd_acc
 
@@ -127,7 +148,7 @@ class Neurawkes(ContLSTMModel):
         self._intensity_obj = Intensity(num_units, num_types)
 
     def train(self, sess, dataset, N_ratio, num_epochs, batch_size,
-              dataset_size=None, val_ratio=None):
+              dataset_size=None, val_ratio=None, savepath=None):
         """
         Model training.
         Parameters:
@@ -154,7 +175,8 @@ class Neurawkes(ContLSTMModel):
         likelihood = self._get_likelihood(x_seq, h_base, h_inter, N, T)
 
         return super().train(iterator, likelihood, sess, dataset, N_ratio,
-                             num_epochs, batch_size, dataset_size, val_ratio)
+                             num_epochs, batch_size, dataset_size, val_ratio,
+                             savepath)
 
     def _pad_dataset(self, ds, batch_size):
         return ds.padded_batch(
@@ -195,7 +217,7 @@ class GraphNeurawkes(ContLSTMModel):
         self._intensity_obj = GraphIntensity(num_units, num_vertices, vstate_len)
 
     def train(self, sess, dataset, N_ratio, num_epochs, batch_size,
-              dataset_size=None, val_ratio=None):
+              dataset_size=None, val_ratio=None, savepath=None):
 
         iterator = tf.data.Iterator.from_structure(
             dataset.output_types,
@@ -217,7 +239,8 @@ class GraphNeurawkes(ContLSTMModel):
         likelihood = self._get_likelihood(x1_seq, x2_seq, h_base, h_inter, N, T)
 
         return super().train(iterator, likelihood, sess, dataset, N_ratio,
-                             num_epochs, batch_size, dataset_size, val_ratio)
+                             num_epochs, batch_size, dataset_size, val_ratio,
+                             savepath)
 
     def _pad_dataset(self, ds, batch_size):
         return ds.padded_batch(

@@ -5,7 +5,8 @@ import numpy as np
 import tensorflow as tf
 from tqdm import tqdm, trange
 
-from .cont_lstm import ContLSTMCell, ContLSTMTrainer
+from .cont_lstm import ContLSTMCell
+from .trainer import ContLSTMTrainer
 from .intensity import Intensity, GraphIntensity
 
 

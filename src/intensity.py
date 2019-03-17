@@ -31,7 +31,7 @@ class Intensity:
         raw_intensity = tf.reduce_sum(w * cstm_hs, axis=1)
         return s * tf.nn.softplus(raw_intensity / s)
 
-    def get_all_intesities(self, ctsm_Hs):
+    def get_all_intensities(self, ctsm_Hs):
         """
         TODO
         """
@@ -51,13 +51,13 @@ class Intensity:
 
 class GraphIntensity:
     def __init__(self, num_units, num_vertices, vstate_len, self_links=False):
-        self._num_vertices = num_vertices
+        self.num_vertices = num_vertices
         self._self_links = self_links
 
         self.W, self.s = self._create_type_variables(
             num_units, num_vertices, vstate_len)
 
-    def get_intensity_for_specific_pairs(self, x1_seq, x2_seq, cstm_hs):
+    def get_intensity_for_pairs_sequence(self, x1_seq, x2_seq, cstm_hs):
         W1 = tf.gather(self.W, x1_seq)
         s = tf.gather(self.s, x1_seq)
 
@@ -67,7 +67,7 @@ class GraphIntensity:
         if self._self_links:
             raise NotImplementedError
         else:
-            indices = tf.range(self._num_vertices)
+            indices = tf.range(self.num_vertices)
             def apply_mask(s, x):
                 return tf.boolean_mask(s, tf.not_equal(indices, x))
 
@@ -80,9 +80,9 @@ class GraphIntensity:
         dot_products = tf.einsum('ijk,ik->ij', all_states, v1_states)
         v1_norms = tf.sqrt(tf.reduce_sum(tf.pow(v1_states, 2), axis=-1))
         all_norms = tf.sqrt(tf.reduce_sum(tf.pow(all_states, 2), axis=-1))
-        norms = tf.expand_dims(v1_norms, -1) * all_norms
+        multiplied_norms = tf.expand_dims(v1_norms, -1) * all_norms
 
-        cos_sims = dot_products / norms
+        cos_sims = dot_products / multiplied_norms
         softmax_sims = tf.math.softmax(cos_sims, axis=-1)
 
         v2_indices = x2_seq
@@ -90,15 +90,20 @@ class GraphIntensity:
             v2_indices -= tf.cast(x1_seq < x2_seq, tf.int32)
 
         v2_indices_mask = tf.one_hot(
-            v2_indices, self._num_vertices - 1, on_value=True, off_value=False)
+            v2_indices, self.num_vertices - 1, on_value=True, off_value=False)
         v2_sims = tf.boolean_mask(softmax_sims, v2_indices_mask)
 
-        return s * tf.nn.softplus(v1_norms / s) * v2_sims
+        return self.apply_transfer_function(v1_norms, s=s) * v2_sims
 
-    def get_all_intesities(self, ctsm_Hs):
+    def get_intensity_for_every_vertex_in_batchseq(self, ctsm_Hs):
         all_states = tf.einsum('ijk,lmk->lmij', self.W, ctsm_Hs)
         all_norms = tf.sqrt(tf.reduce_sum(tf.pow(all_states, 2), axis=-1))
-        return self.s * tf.nn.softplus(all_norms / self.s)
+        return self.apply_transfer_function(all_norms)
+
+    def apply_transfer_function(self, input_, s=None):
+        if s is None:
+            s = self.s
+        return s * tf.nn.softplus(input_ / s)
 
     def _create_type_variables(self, num_units, num_vertices, vstate_len):
         with tf.variable_scope('vertices_vars'):

@@ -8,17 +8,22 @@ from tqdm import tqdm, trange
 from .cont_lstm import ContLSTMCell
 from .trainer import ContLSTMTrainer
 from .intensity import Intensity, GraphIntensity
+from .generators import GraphNeurawkesGenerator
 
 
 class ContLSTMModel(abc.ABC):
     def __init__(self, num_units, elem_size):
-        cell = ContLSTMCell(num_units, elem_size)
-        self._trainer = ContLSTMTrainer(cell)
+        self._cell = ContLSTMCell(num_units, elem_size)
+        self._trainer = ContLSTMTrainer(self._cell)
+
+        self._generator = None
 
     def train(self, iterator, likelihood, 
               sess, dataset, N_ratio, num_epochs, batch_size,
               dataset_size=None, val_ratio=None,
               savepath=None):
+
+        assert not tf.executing_eagerly()
 
         optimizer = tf.train.AdamOptimizer()
         train_step = optimizer.minimize(-likelihood)
@@ -107,6 +112,15 @@ class ContLSTMModel(abc.ABC):
                     saver.save(sess, savepath)
 
         return train_lhd_acc, val_lhd_acc
+
+    def generate(self, saved_path=None, seed=None, max_events=None, max_time=None):
+        if self._generator is None:
+            raise NotImplementedError
+
+        if saved_path is not None:
+            pass #TODO
+
+        return self._generator.generate_events(seed, max_events, max_time)
 
     def _preprocess_times_data(self, t_seq, T, N_ratio):
         T_max = tf.reduce_max(T)
@@ -204,7 +218,7 @@ class Neurawkes(ContLSTMModel):
             dtype=(tf.float32, tf.float32)
         )
 
-        neg_lhd = self._intensity_obj.get_all_intesities(h_inter)
+        neg_lhd = self._intensity_obj.get_all_intensities(h_inter)
         neg_lhd = T * tf.einsum('ijk->i', neg_lhd) / N
 
         return tf.reduce_mean((pos_lhd - neg_lhd) / seq_lens)  # likelihood per event
@@ -216,6 +230,7 @@ class GraphNeurawkes(ContLSTMModel):
         super().__init__(num_units, 2 * num_vertices + 1)
         self._num_vertices = num_vertices
         self._intensity_obj = GraphIntensity(num_units, num_vertices, vstate_len)
+        self._generator = GraphNeurawkesGenerator(self._cell, self._intensity_obj)
 
     def train(self, sess, dataset, N_ratio, num_epochs, batch_size,
               dataset_size=None, val_ratio=None, savepath=None):
@@ -258,7 +273,7 @@ class GraphNeurawkes(ContLSTMModel):
             h = tf.boolean_mask(h, mask)
             return tf.math.count_nonzero(mask, dtype=tf.float32), \
                    tf.reduce_sum(tf.log(
-                        self._intensity_obj.get_intensity_for_specific_pairs(x1, x2, h)))
+                        self._intensity_obj.get_intensity_for_pairs_sequence(x1, x2, h)))
 
         seq_lens, pos_lhd = tf.map_fn(
             fn=lambda xh: get_pos_lhd_for_batch_elem(*xh),
@@ -270,7 +285,7 @@ class GraphNeurawkes(ContLSTMModel):
             dtype=(tf.float32, tf.float32)
         )
 
-        neg_lhd = self._intensity_obj.get_all_intesities(h_inter)
+        neg_lhd = self._intensity_obj.get_intensity_for_every_vertex_in_batchseq(h_inter)
         neg_lhd = T * tf.einsum('ijk->i', neg_lhd) / N
 
         return tf.reduce_mean((pos_lhd - neg_lhd) / seq_lens)  # likelihood per event

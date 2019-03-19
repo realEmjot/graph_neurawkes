@@ -1,7 +1,8 @@
 import tensorflow as tf
+from . import utils
 
 
-class ContLSTMCell:
+class ContLSTMCell(utils.VariablesContainer):
     def __init__(self, num_units, elem_size):
         self.num_units = num_units
         self.elem_size = elem_size
@@ -15,6 +16,12 @@ class ContLSTMCell:
         self.f_base_vars = self._create_gate_variables(num_units, elem_size, 'f_base_vars')
 
         self.decay_vars = self._create_gate_variables(num_units, elem_size, 'decay_vars')
+
+    def get_variables_list(self):
+        return [
+            *self.i_vars, *self.f_vars, *self.z_vars, *self.o_vars,
+            *self.i_base_vars, *self.f_base_vars, *self.decay_vars
+        ]
 
     def build_graph(self, x, t_init, c_init, c_base_init, h_init): # t_init here for convenience
         i = self._create_gate(*self.i_vars, x, h_init, tf.sigmoid, 'i_gate')

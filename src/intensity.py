@@ -1,7 +1,8 @@
 import tensorflow as tf
+from . import utils
 
 
-class Intensity:
+class Intensity(utils.VariablesContainer):
     """
     Class for obtaining event intensities from CSTM hidden states.
     """
@@ -11,7 +12,14 @@ class Intensity:
             num_units (int): size of modified CSTM model
             num_types (int): number of different event types in data
         """
-        self.W, self.s = self._create_type_variables(num_units, num_types)
+        self.W, self._raw_s = self._create_type_variables(num_units, num_types)
+
+    @property
+    def s(self):
+        return tf.math.abs(self._raw_s)
+
+    def get_variables_list(self):
+        return [self.W, self._raw_s]
 
     def get_intensity_for_type(self, type_ids, cstm_hs):
         """
@@ -41,21 +49,28 @@ class Intensity:
     def _create_type_variables(self, num_units, num_types):
         with tf.variable_scope('type_vars'):
             W = tf.get_variable('W', [num_types, num_units])
-            s = tf.math.abs(tf.get_variable(
+            raw_s = tf.get_variable(
                 's',
                 [num_types],
                 initializer=tf.initializers.ones
-            ))
-        return W, s
+            )
+        return W, raw_s
 
 
-class GraphIntensity:
+class GraphIntensity(utils.VariablesContainer):
     def __init__(self, num_units, num_vertices, vstate_len, self_links=False):
         self.num_vertices = num_vertices
         self._self_links = self_links
 
-        self.W, self.s = self._create_type_variables(
+        self.W, self._raw_s = self._create_type_variables(
             num_units, num_vertices, vstate_len)
+
+    @property
+    def s(self):
+        return tf.math.abs(self._raw_s)
+
+    def get_variables_list(self):
+        return [self.W, self._raw_s]
 
     def get_intensity_for_pairs_sequence(self, x1_seq, x2_seq, cstm_hs):
         W1 = tf.gather(self.W, x1_seq)
@@ -108,9 +123,9 @@ class GraphIntensity:
     def _create_type_variables(self, num_units, num_vertices, vstate_len):
         with tf.variable_scope('vertices_vars'):
             W = tf.get_variable('W', [num_vertices, vstate_len, num_units])
-            s = tf.math.abs(tf.get_variable(
+            raw_s = tf.get_variable(
                 's',
                 [num_vertices],
                 initializer=tf.initializers.ones
-            ))
-        return W, s
+            )
+        return W, raw_s

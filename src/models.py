@@ -3,6 +3,8 @@ import math
 
 import numpy as np
 import tensorflow as tf
+import tensorflow.contrib.eager as tfe
+
 from tqdm import tqdm, trange
 
 from .cont_lstm import ContLSTMCell
@@ -16,6 +18,7 @@ class ContLSTMModel(abc.ABC):
         self._cell = ContLSTMCell(num_units, elem_size)
         self._trainer = ContLSTMTrainer(self._cell)
 
+        self._intensity_obj = None
         self._generator = None
 
     def train(self, iterator, likelihood, 
@@ -114,11 +117,16 @@ class ContLSTMModel(abc.ABC):
         return train_lhd_acc, val_lhd_acc
 
     def generate(self, saved_path=None, seed=None, max_events=None, max_time=None):
+        assert tf.executing_eagerly()
+
         if self._generator is None:
             raise NotImplementedError
 
         if saved_path is not None:
-            pass #TODO
+            tfe.Saver([
+                *self._cell.get_time_dependent_vars(),
+                *self._intensity_obj.get_time_dependent_vars()
+            ]).restore(saved_path)
 
         return self._generator.generate_events(seed, max_events, max_time)
 

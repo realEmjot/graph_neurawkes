@@ -58,7 +58,10 @@ class ContLSTMModel(abc.ABC):
 
         if savepath:
             best_lhd = -np.inf
-            saver = tf.train.Saver()
+            saver = tf.train.Saver([
+                *self._cell.get_variables_list(),
+                *self._intensity_obj.get_variables_list()
+            ])
 
         for epoch_id in epoch_progress_bar:
             if dataset_size:
@@ -124,8 +127,8 @@ class ContLSTMModel(abc.ABC):
 
         if saved_path is not None:
             tfe.Saver([
-                *self._cell.get_time_dependent_vars(),
-                *self._intensity_obj.get_time_dependent_vars()
+                *self._cell.get_variables_list(),
+                *self._intensity_obj.get_variables_list()
             ]).restore(saved_path)
 
         return self._generator.generate_events(seed, max_events, max_time)

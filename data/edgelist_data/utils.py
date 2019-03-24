@@ -13,14 +13,10 @@ def _get_event_ids(df, num_ids):
 
 def _get_df(filepath):
     df = pd.read_csv(filepath, names=['sender', 'recipient', 'time'],
-                       dtype={'time': np.float32})
-    df.sender -= 1
-    df.recipient -= 1
+                       dtype={'sender': np.int32, 'recipient': np.int32,
+                              'time': np.float32})
     df.time -= df.time.min()
     df.time += 1
-
-    df.sender = df.sender.astype(np.int32, copy=False)
-    df.recipient = df.recipient.astype(np.int32, copy=False)
 
     return df
 

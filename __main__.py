@@ -79,9 +79,11 @@ def train_and_save(
             val_ratio, model_savepath
         )
 
-    if model_savepath:
+    if results_savepath:
         with open(results_savepath, 'wb') as f:
             pickle.dump(result, f)
+
+    return result
 
 
 def generate():

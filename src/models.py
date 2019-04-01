@@ -1,5 +1,6 @@
 import abc
 import math
+import time
 
 import numpy as np
 import tensorflow as tf
@@ -53,7 +54,7 @@ class ContLSTMModel(abc.ABC):
             self._pad_dataset(dataset, batch_size)
         )
 
-        train_lhd_acc = []
+        train_lhd_acc, train_times_acc = [], []
         val_lhd_acc = []
 
         if savepath:
@@ -73,14 +74,17 @@ class ContLSTMModel(abc.ABC):
 
             sess.run(train_init_op)
             while True:
+                train_start_time = time.time()
                 try:
                     _, train_lhd = sess.run([train_step, likelihood])
                 except tf.errors.OutOfRangeError:
                     if dataset_size:
                         iter_progress_bar.close()
                     break
+                train_end_time = time.time()
 
                 train_lhd_acc.append(train_lhd)
+                train_times_acc.append(train_end_time - train_start_time)
 
                 if dataset_size:
                     iter_progress_bar.update()
@@ -117,7 +121,11 @@ class ContLSTMModel(abc.ABC):
                     best_lhd = current_lhd
                     saver.save(sess, savepath)
 
-        return train_lhd_acc, val_lhd_acc
+        return {
+            'train_lhds': train_lhd_acc,
+            'train_times': train_times_acc,
+            'val_lhds': val_lhd_acc
+        }
 
     def generate(self, saved_path=None, seed=None, max_events=None, max_time=None):
         assert tf.executing_eagerly()

@@ -40,7 +40,9 @@ def train_and_save(
         if batching_mode is None:
             cut_func=None
         else:
-            if batching_mode == 'gap_cut':
+            if batching_mode == 'even_cut':
+                cut_func = edgelist_utils.cut_evenly
+            elif batching_mode == 'gap_cut':
                 cut_func = edgelist_utils.cut_on_big_gaps
             else:
                 raise NotImplementedError

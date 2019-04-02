@@ -6,10 +6,12 @@ import tensorflow as tf
 def _get_pair_id(i, j, num_ids):
     return num_ids * i + j
 
+
 def _get_event_ids(df, num_ids):
     return np.array([_get_pair_id(i, j, num_ids)
                     for i, j in zip(df.sender, df.recipient)],
                     dtype=np.int32)
+
 
 def _get_df(filepath):
     df = pd.read_csv(filepath, names=['sender', 'recipient', 'time'],
@@ -19,6 +21,23 @@ def _get_df(filepath):
     df.time += 1
 
     return df
+
+
+def cut_evenly(df, piece_len, min_len=2, take_rest=False):
+    if piece_len > len(df):
+        raise ValueError('piece_len cannot be larger than length of dataset!')
+
+    dfs = [df[start:end] for start, end in
+            zip(
+                range(0, len(df), piece_len),
+                range(piece_len, len(df) + piece_len, piece_len)
+            )]
+
+    if not take_rest or len(dfs[-1]) < min_len:
+        dfs = dfs[:-1]
+
+    return dfs
+
 
 def cut_on_big_gaps(df, min_gap_size, min_len=2):
     t_diffs = np.array([t2 - t1 for t1, t2 in zip(df.time[:-1], df.time[1:])])
@@ -33,6 +52,7 @@ def cut_on_big_gaps(df, min_gap_size, min_len=2):
             dfs.append(df_slice)
     return dfs
 
+
 def to_event_dataset_naive(filepath, cut_func=None, **cut_kwargs):
     df = _get_df(filepath)
     num_ids = max(df.sender.max(), df.recipient.max()) + 1
@@ -46,6 +66,7 @@ def to_event_dataset_naive(filepath, cut_func=None, **cut_kwargs):
     ds = tf.data.Dataset.from_tensors((_get_event_ids(df, num_ids), df.time, df.time.max()))
     return ds, 1
 
+
 def to_event_dataset_sender_only(filepath, cut_func=None, **cut_kwargs):
     df = _get_df(filepath)
     if cut_func:
@@ -56,6 +77,7 @@ def to_event_dataset_sender_only(filepath, cut_func=None, **cut_kwargs):
 
     ds = tf.data.Dataset.from_tensors((df.sender, df.time, df.time.max()))
     return ds, 1
+
 
 def to_event_dataset_full(filepath, cut_func=None, **cut_kwargs):
     df = _get_df(filepath)

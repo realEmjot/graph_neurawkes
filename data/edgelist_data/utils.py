@@ -27,11 +27,15 @@ def cut_evenly(df, piece_len, min_len=2, take_rest=False):
     if piece_len > len(df):
         raise ValueError('piece_len cannot be larger than length of dataset!')
 
-    dfs = [df[start:end] for start, end in
+    dfs = [df[start:end].copy() for start, end in
             zip(
                 range(0, len(df), piece_len),
                 range(piece_len, len(df) + piece_len, piece_len)
             )]
+
+    for df_slice in dfs:
+        df_slice.time -= df_slice.time.iloc[0]
+        df_slice.time += 1
 
     if not take_rest or len(dfs[-1]) < min_len:
         dfs = dfs[:-1]
@@ -46,7 +50,7 @@ def cut_on_big_gaps(df, min_gap_size, min_len=2):
     dfs = []
     for start, end in zip(np.insert(boundaries, 0, 0), np.append(boundaries, len(df))):
         if end - start >= min_len:
-            df_slice = df[start:end]
+            df_slice = df[start:end].copy()
             df_slice.time -= df_slice.time.iloc[0]
             df_slice.time += 1
             dfs.append(df_slice)

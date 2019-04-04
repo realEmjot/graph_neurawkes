@@ -27,7 +27,7 @@ def train_and_save(
         num_units, num_types,
         N_ratio=1.0,
         vstate_len=None,
-        dataset_size=None, val_ratio=None,
+        val_ratio=None,
         results_savepath=None, model_savepath=None,
         data_type='edgelist',
         data_mode='full',

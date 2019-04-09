@@ -39,9 +39,9 @@ RUN_full_gap_ia = {
     'values': {
         **BASE_RUN['values'],
         'batching_kwargs': [
+            {'min_gap_size': 20},
             {'min_gap_size': 50},
-            {'min_gap_size': 75},
-            {'min_gap_size': 100}
+            {'min_gap_size': 75}
         ]
     },
     'run': {

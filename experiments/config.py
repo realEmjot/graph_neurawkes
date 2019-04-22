@@ -8,7 +8,7 @@ RUN_full_gap_fb = {
         'batching_mode': 'gap_cut',
         'data_path': '../data/edgelist_data/fb-forum/data.txt',
         'num_types': 899,
-        'model_savepath': 'saved_models/full_gap_fb/${id}'
+        'model_savepath': 'full_saved_models/full_gap_fb/${id}'
     },
     'values': {
         **BASE_RUN['values'],

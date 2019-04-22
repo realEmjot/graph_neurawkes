@@ -20,7 +20,7 @@ BASE_RUN = {
     'values': {
         'data_path': [
             '../data/edgelist_data/fb-forum/data.txt',
-            '../data/edgelist_data/ia-contacts_hypertext2009/data.txt'   
+            '../data/edgelist_data/ia-contacts_hypertext2009/data.txt'
         ],
         'num_types': [899, 113],
         'num_units': [64, 256, 512],

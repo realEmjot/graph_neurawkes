@@ -6,7 +6,8 @@ BASE_NAIVE_RUN = {
         **BASE_RUN['default_values'],
         'data_mode': 'naive',
         'batching_mode': 'gap_cut'
-    }
+    },
+    'run': 'default'
 }
 
 RUN_naive_basic_fb = {

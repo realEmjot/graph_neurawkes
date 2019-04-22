@@ -61,6 +61,7 @@ def train_and_save(
         elif data_mode == 'naive':
             ds_func = edgelist_utils.to_event_dataset_naive
             model_class = Neurawkes
+            num_types = pow(num_types, 2)
         else:
             raise NotImplementedError
     else:

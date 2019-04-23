@@ -5,7 +5,8 @@ BASE_NAIVE_RUN = {
     'default_values': {
         **BASE_RUN['default_values'],
         'data_mode': 'naive',
-        'batching_mode': 'gap_cut'
+        'batching_mode': 'gap_cut',
+        'loops':  False
     },
     'run': 'default'
 }

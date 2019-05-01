@@ -19,10 +19,12 @@ BASE_RUN = {
     },
     'values': {
         'data_path': [
-            '../data/edgelist_data/fb-forum/data.txt',
-            '../data/edgelist_data/ia-contacts_hypertext2009/data.txt'
+            '../data/edgelist_data/fb-forum/data.csv',
+            '../data/edgelist_data/ia-contacts_hypertext2009/data.csv',
+            '../data/edgelist_data/ia-radoslaw-email/data.csv'
         ],
-        'num_types': [899, 113],
+        'self_links': [True, False, True],
+        'num_types': [899, 113, 167],
         'num_units': [64, 256, 512],
         'vstate_len': [50, 200, 300]
     },

@@ -33,7 +33,7 @@ def train_and_save(
         data_mode='full',
         batching_mode=None,
         batching_kwargs=None,
-        loops=False): # loops param is used only for naive setting
+        self_links=False):
 
     _check_mode_decorator('static')
 
@@ -63,9 +63,9 @@ def train_and_save(
         elif data_mode == 'naive':
             ds_func = edgelist_utils.to_event_dataset_naive
             model_class = Neurawkes
-            additional_kwargs = {'loops': loops}
+            additional_kwargs = {'self_links': self_links}
 
-            if loops:
+            if self_links:
                 num_types = pow(num_types, 2)
             else:
                 num_types = pow(num_types, 2) - num_types
@@ -80,7 +80,7 @@ def train_and_save(
     if model_class is GraphNeurawkes:
         if vstate_len is None:
             raise ValueError
-        model = GraphNeurawkes(num_units, num_types, vstate_len)
+        model = GraphNeurawkes(num_units, num_types, vstate_len, self_links)
 
     dataset, dataset_size = ds_func(data_path, cut_func, **additional_kwargs,
                                     **batching_kwargs)

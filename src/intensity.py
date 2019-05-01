@@ -62,15 +62,18 @@ class GraphIntensity(utils.VariablesContainer):
         self.num_vertices = num_vertices
         self._self_links = self_links
 
-        self.W, self._raw_s = self._create_type_variables(
-            num_units, num_vertices, vstate_len)
+        self._raw_s, self.W, self.W_self = self._create_type_variables(
+            num_units, num_vertices, vstate_len, self_links)
 
     @property
     def s(self):
         return tf.math.abs(self._raw_s)
 
     def get_variables_list(self):
-        return [self.W, self._raw_s]
+        var_list = [self._raw_s, self.W]
+        if self._self_links:
+            var_list.append(self.W_self)
+        return var_list
 
     def get_intensity_for_pairs_sequence(self, x1_seq, x2_seq, cstm_hs):
         W1 = tf.gather(self.W, x1_seq)
@@ -79,10 +82,22 @@ class GraphIntensity(utils.VariablesContainer):
         v1_states = tf.einsum('ijk,ik->ij', W1, cstm_hs)
         all_states = tf.einsum('ijk,lk->lij', self.W, cstm_hs)
 
+        indices = tf.range(self.num_vertices)
         if self._self_links:
-            raise NotImplementedError
+            def choose_state(normal_s, self_s, x1):
+                return tf.where(
+                    x=normal_s,
+                    y=self_s,
+                    condition=tf.not_equal(indices, x1)
+                )
+
+            all_self_states = tf.einsum('ijk,lk->lij', self.W_self, cstm_hs)
+            all_states = tf.map_fn(
+                fn=lambda ssx: choose_state(*ssx),
+                elems=(all_states, all_self_states, x1_seq),
+                dtype=all_states.dtype
+            )
         else:
-            indices = tf.range(self.num_vertices)
             def apply_mask(s, x):
                 return tf.boolean_mask(s, tf.not_equal(indices, x))
 
@@ -105,7 +120,8 @@ class GraphIntensity(utils.VariablesContainer):
             v2_indices -= tf.cast(x1_seq < x2_seq, tf.int32)
 
         v2_indices_mask = tf.one_hot(
-            v2_indices, self.num_vertices - 1, on_value=True, off_value=False)
+            v2_indices, self.num_vertices - int(not self._self_links),
+            on_value=True, off_value=False)
         v2_sims = tf.boolean_mask(softmax_sims, v2_indices_mask)
 
         return self.apply_transfer_function(v1_norms, s=s) * v2_sims
@@ -120,7 +136,7 @@ class GraphIntensity(utils.VariablesContainer):
             s = self.s
         return s * tf.nn.softplus(input_ / s)
 
-    def _create_type_variables(self, num_units, num_vertices, vstate_len):
+    def _create_type_variables(self, num_units, num_vertices, vstate_len, self_links=False):
         with tf.variable_scope('vertices_vars'):
             W = tf.get_variable('W', [num_vertices, vstate_len, num_units])
             raw_s = tf.get_variable(
@@ -128,4 +144,10 @@ class GraphIntensity(utils.VariablesContainer):
                 [num_vertices],
                 initializer=tf.initializers.ones
             )
-        return W, raw_s
+
+            if self_links:
+                W_self = tf.get_variable('W', [num_vertices, vstate_len, num_units])
+            else:
+                W_self = None
+
+        return raw_s, W, W_self

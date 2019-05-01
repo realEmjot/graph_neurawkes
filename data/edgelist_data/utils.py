@@ -3,31 +3,31 @@ import pandas as pd
 import tensorflow as tf
 
 
-def _get_pair_id_with_loops(i, j, num_ids):
+def _get_pair_id_with_self_links(i, j, num_ids):
     return num_ids * i + j
 
 
-def _get_pair_id_without_loops(i, j, num_ids):
+def _get_pair_id_without_self_links(i, j, num_ids):
     assert i != j
     return num_ids * i + j - i - int(i < j)
 
 
-def translate_pair_id_with_loops(pair_id, num_ids):
+def translate_pair_id_with_self_links(pair_id, num_ids):
     return pair_id // num_ids, pair_id % num_ids
 
 
-def translate_pair_id_without_loops(pair_id, num_ids):
+def translate_pair_id_without_self_links(pair_id, num_ids):
     i = pair_id // (num_ids - 1)
     j = pair_id % (num_ids - 1)
     j += int(j >= i)
     return i, j
 
 
-def _get_event_ids(df, num_ids, loops=True):
-    if loops:
-        pair_func = _get_pair_id_with_loops
+def _get_event_ids(df, num_ids, self_links=True):
+    if self_links:
+        pair_func = _get_pair_id_with_self_links
     else:
-        pair_func = _get_pair_id_without_loops
+        pair_func = _get_pair_id_without_self_links
 
     return np.array([pair_func(i, j, num_ids)
                     for i, j in zip(df.sender, df.recipient)],
@@ -78,17 +78,17 @@ def cut_on_big_gaps(df, min_gap_size, min_len=2):
     return dfs
 
 
-def to_event_dataset_naive(filepath, cut_func=None, loops=True, **cut_kwargs):
+def to_event_dataset_naive(filepath, cut_func=None, self_links=True, **cut_kwargs):
     df = _get_df(filepath)
     num_ids = max(df.sender.max(), df.recipient.max()) + 1
 
     if cut_func:
         dfs = cut_func(df, **cut_kwargs)
-        data = [(_get_event_ids(df, num_ids, loops), df.time, df.time.max()) for df in dfs]
+        data = [(_get_event_ids(df, num_ids, self_links), df.time, df.time.max()) for df in dfs]
         ds = tf.data.Dataset.from_generator(lambda: data, (tf.int32, tf.float32, tf.float32))
         return ds, len(dfs)
 
-    ds = tf.data.Dataset.from_tensors((_get_event_ids(df, num_ids, loops), df.time, df.time.max()))
+    ds = tf.data.Dataset.from_tensors((_get_event_ids(df, num_ids, self_links), df.time, df.time.max()))
     return ds, 1
 
 

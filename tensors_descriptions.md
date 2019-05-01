@@ -54,21 +54,21 @@ W1: [seq_len x vstate_len x num_units]
 s: [seq_len]  
 
 v1_states: [seq_len x vstate_len]  
-all_states: [seq_len x num_vertices x v_state_len]  
+all_states: [seq_len x num_vertices x vstate_len]  
 
 indices: [num_vertices]  
-all_states: [seq_len x num_vertices-1 x v_state_len]  
+*if not self_links* all_states: [seq_len x num_vertices-1 x vstate_len]  
 
-dot_products: [seq_len x num_vertices-1]  
+dot_products: [seq_len x num_vertices-(not self_links)]  
 v1_norms: [seq_len]  
-all_norms: [seq_len x num_vertices-1]  
-multiplied_norms: [seq_len x num_vertices-1]  
+all_norms: [seq_len x num_vertices-(not self_links)]  
+multiplied_norms: [seq_len x num_vertices-(not self_links)]  
 
-cos_sims: [seq_len x num_vertices-1]  
-softmax_sims: [seq_len x num_vertices-1]  
+cos_sims: [seq_len x num_vertices-(not self_links)]  
+softmax_sims: [seq_len x num_vertices-(not self_links)]  
 
 v2_indices: [seq_len]  
-v2_indices_mask: [seq_len x num_vertices-1]  
+v2_indices_mask: [seq_len x num_vertices-(not self_links)]  
 v2_sims: [seq_len]  
 
 *returns*: [seq_len]  

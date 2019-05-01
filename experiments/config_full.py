@@ -35,7 +35,7 @@ RUN_full_gap_hypertext = {
         'batching_mode': 'gap_cut',
         'data_path': '../data/edgelist_data/ia-contacts_hypertext2009/data.txt',
         'num_types': 113,
-        'model_savepath': 'saved_models/full_gap_hypertext/${id}',
+        'model_savepath': 'full_saved_models/full_gap_hypertext/${id}',
         'self_links': False
     },
     'values': {
@@ -61,7 +61,7 @@ RUN_full_gap_radoslaw = {
         'batching_mode': 'gap_cut',
         'data_path': '../data/edgelist_data/ia-radoslaw-email/data.csv',
         'num_types': 167,
-        'model_savepath': 'saved_models/full_gap_radoslaw/${id}',
+        'model_savepath': 'full_saved_models/full_gap_radoslaw/${id}',
         'self_links': True
     },
     'values': {

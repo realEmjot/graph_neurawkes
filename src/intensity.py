@@ -146,7 +146,7 @@ class GraphIntensity(utils.VariablesContainer):
             )
 
             if self_links:
-                W_self = tf.get_variable('W', [num_vertices, vstate_len, num_units])
+                W_self = tf.get_variable('W_self', [num_vertices, vstate_len, num_units])
             else:
                 W_self = None
 

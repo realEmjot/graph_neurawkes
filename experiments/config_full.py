@@ -6,7 +6,7 @@ RUN_full_gap_fb = {
     'default_values': {
         **BASE_RUN['default_values'],
         'batching_mode': 'gap_cut',
-        'data_path': '../data/edgelist_data/fb-forum/data.txt',
+        'data_path': '../data/edgelist_data/fb-forum/data.csv',
         'num_types': 899,
         'model_savepath': 'full_saved_models/full_gap_fb/${id}',
         'self_links': True
@@ -33,7 +33,7 @@ RUN_full_gap_hypertext = {
     'default_values': {
         **BASE_RUN['default_values'],
         'batching_mode': 'gap_cut',
-        'data_path': '../data/edgelist_data/ia-contacts_hypertext2009/data.txt',
+        'data_path': '../data/edgelist_data/ia-contacts_hypertext2009/data.csv',
         'num_types': 113,
         'model_savepath': 'full_saved_models/full_gap_hypertext/${id}',
         'self_links': False

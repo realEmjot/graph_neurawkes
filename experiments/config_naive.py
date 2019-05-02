@@ -14,7 +14,7 @@ RUN_naive_basic_fb = {
     **BASE_NAIVE_RUN,
     'default_values': {
         **BASE_NAIVE_RUN['default_values'],
-        'data_path': '../data/edgelist_data/fb-forum/data.txt',
+        'data_path': '../data/edgelist_data/fb-forum/data.csv',
         'self_links': True,
         'num_types': 899,
         'model_savepath': 'naive_saved_models/naive_basic_fb/${id}',
@@ -26,7 +26,7 @@ RUN_naive_basic_ia = {
     **BASE_NAIVE_RUN,
     'default_values': {
         **BASE_NAIVE_RUN['default_values'],
-        'data_path': '../data/edgelist_data/ia-contacts_hypertext2009/data.txt',
+        'data_path': '../data/edgelist_data/ia-contacts_hypertext2009/data.csv',
         'self_links': False,
         'num_types': 113,
         'model_savepath': 'naive_saved_models/naive_basic_ia/${id}',

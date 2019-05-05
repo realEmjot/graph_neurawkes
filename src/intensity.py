@@ -12,6 +12,7 @@ class Intensity(utils.VariablesContainer):
             num_units (int): size of modified CSTM model
             num_types (int): number of different event types in data
         """
+        self.num_types = num_types  # used by generator
         self.W, self._raw_s = self._create_type_variables(num_units, num_types)
 
     @property
@@ -37,14 +38,19 @@ class Intensity(utils.VariablesContainer):
         w = tf.gather(self.W, type_ids)
         s = tf.gather(self.s, type_ids)
         raw_intensity = tf.reduce_sum(w * cstm_hs, axis=1)
-        return s * tf.nn.softplus(raw_intensity / s)
+        return self.apply_transfer_function(raw_intensity, s=s)
 
     def get_all_intensities(self, ctsm_Hs):
         """
         TODO
         """
         raw_intensities = tf.einsum('ijk,lk->ijl', ctsm_Hs, self.W)
-        return self.s * tf.nn.softplus(raw_intensities / self.s)
+        return self.apply_transfer_function(raw_intensities)
+
+    def apply_transfer_function(self, input_, s=None):
+        if s is None:
+            s = self.s
+        return s * tf.nn.softplus(input_ / s)
 
     def _create_type_variables(self, num_units, num_types):
         with tf.variable_scope('type_vars'):

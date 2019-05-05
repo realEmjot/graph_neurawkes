@@ -11,7 +11,7 @@ from tqdm import tqdm, trange
 from .cont_lstm import ContLSTMCell
 from .trainer import ContLSTMTrainer
 from .intensity import Intensity, GraphIntensity
-from .generators import GraphNeurawkesGenerator
+from .generators import NeurawkesGenerator, GraphNeurawkesGenerator
 
 
 class ContLSTMModel(abc.ABC):
@@ -180,6 +180,7 @@ class Neurawkes(ContLSTMModel):
             num_types + 1
         )
         self._intensity_obj = Intensity(num_units, num_types)
+        self._generator = NeurawkesGenerator(self._cell, self._intensity_obj)
 
     def train(self, sess, dataset, N_ratio, num_epochs, batch_size,
               dataset_size=None, val_ratio=None, savepath=None):

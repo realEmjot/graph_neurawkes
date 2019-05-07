@@ -7,7 +7,7 @@ class AbstractGenerator(abc.ABC):
         self.cell = cell
         self.intensity_obj = intensity_obj
 
-    def generate_events(self, seed=None, max_events=None, max_time=None):  # TODO support self-links
+    def generate_events(self, seed=None, max_events=None, max_time=None):
         assert tf.executing_eagerly()
         assert (max_events, max_time) != (None, None)
 
@@ -132,6 +132,10 @@ class NeurawkesGenerator(AbstractGenerator):
 
 
 class GraphNeurawkesGenerator(AbstractGenerator):
+    def __init__(self, cell, intensity_obj, self_links):
+        super().__init__(cell, intensity_obj)
+        self._self_links = self_links
+
     def _sample_event_type(self, h_t, upper_intensity_bound):
         current_vstates = tf.einsum('ijk,k->ij', self.intensity_obj.W, tf.squeeze(h_t))
         current_norms = tf.sqrt(tf.reduce_sum(tf.pow(current_vstates, 2), axis=-1))
@@ -150,18 +154,26 @@ class GraphNeurawkesGenerator(AbstractGenerator):
                 break
         assert current_sender is not None  #TODO remove after a while
 
+        sender_vstate = current_vstates[current_sender]
+        sender_norm = current_norms[current_sender]
+
         vstates_mask = tf.one_hot(
             indices=current_sender,
             depth=self.intensity_obj.num_vertices,
             on_value=False,
             off_value=True
         )
-        
-        sender_vstate = current_vstates[current_sender]
-        sender_norm = current_norms[current_sender]
-
-        other_vstates = tf.boolean_mask(current_vstates, vstates_mask)
-        other_norms = tf.boolean_mask(current_norms, vstates_mask)
+        if self._self_links:
+            current_self_vstates = tf.einsum('ijk,k->ij', self.intensity_obj.W_self, tf.squeeze(h_t))
+            other_vstates = tf.where(
+                x=current_vstates,
+                y=current_self_vstates,
+                condition=vstates_mask
+            )
+            other_norms = tf.sqrt(tf.reduce_sum(tf.pow(other_vstates, 2), axis=-1))
+        else:
+            other_vstates = tf.boolean_mask(current_vstates, vstates_mask)
+            other_norms = tf.boolean_mask(current_norms, vstates_mask)
 
         cos_sims = tf.einsum('ij,j->i', other_vstates, sender_vstate) / (sender_norm * other_norms)
         softmax_sims = tf.math.softmax(cos_sims)
@@ -172,7 +184,7 @@ class GraphNeurawkesGenerator(AbstractGenerator):
                 current_recipient = vertex_id
                 break
 
-        if current_sender <= current_recipient:
+        if not self._self_links and current_sender <= current_recipient:
             current_recipient += 1
 
         return current_sender, current_recipient

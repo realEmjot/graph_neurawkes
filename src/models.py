@@ -250,7 +250,7 @@ class GraphNeurawkes(ContLSTMModel):
         super().__init__(num_units, 2 * num_vertices + 1)
         self._num_vertices = num_vertices
         self._intensity_obj = GraphIntensity(num_units, num_vertices, vstate_len, self_links)
-        self._generator = GraphNeurawkesGenerator(self._cell, self._intensity_obj)
+        self._generator = GraphNeurawkesGenerator(self._cell, self._intensity_obj, self_links)
 
     def train(self, sess, dataset, N_ratio, num_epochs, batch_size,
               dataset_size=None, val_ratio=None, savepath=None):

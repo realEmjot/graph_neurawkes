@@ -2,17 +2,14 @@ import abc
 import tensorflow as tf
 
 
-class AbstractGenerator:
+class AbstractGenerator(abc.ABC):
     def __init__(self, cell, intensity_obj):
         self.cell = cell
         self.intensity_obj = intensity_obj
 
-    def generate_events(self, seed=None, max_events=None, max_time=None):  # TODO support for seed and self-links
+    def generate_events(self, seed=None, max_events=None, max_time=None):  # TODO support self-links
         assert tf.executing_eagerly()
         assert (max_events, max_time) != (None, None)
-        
-        if seed is not None:
-            pass #TODO
 
         graph_vars = self.cell.build_graph(
             tf.expand_dims(tf.one_hot(0, self.cell.elem_size), 0),  # bos x
@@ -23,8 +20,11 @@ class AbstractGenerator:
         )
 
         generated_sequence = []
-
         current_time = 0.
+
+        if seed is not None:
+            graph_vars, current_time = self._apply_seed(seed, graph_vars)
+
         c_t = graph_vars[1]
 
         while (max_events is None or len(generated_sequence) < max_events) and \
@@ -56,6 +56,27 @@ class AbstractGenerator:
             c_t = graph_vars[1]
 
         return generated_sequence
+
+    def _apply_seed(self, seed, graph_vars):
+        for event in seed:
+            event_type = event[:-1]
+            timestamp = event[-1]
+
+            c_t, c_base, h_t = self.cell.get_time_dependent_vars(
+                t=timestamp,
+                graph_vars=graph_vars
+            )
+
+            x_oh = self._parse_type_to_one_hot(event_type)
+            x_oh = tf.expand_dims(x_oh, 0)
+
+            graph_vars = self.cell.build_graph(
+                x_oh,
+                tf.expand_dims(timestamp, 0),
+                c_t, c_base, h_t
+            )
+
+        return graph_vars, timestamp
 
     @abc.abstractmethod
     def _sample_event_type(self, h_t, upper_intensity_bound):

@@ -1,6 +1,8 @@
 import abc
 import tensorflow as tf
 
+from bisect import bisect_left
+
 
 class AbstractGenerator(abc.ABC):
     def __init__(self, cell, intensity_obj):
@@ -102,12 +104,7 @@ class NeurawkesGenerator(AbstractGenerator):
         if random_val * upper_intensity_bound > tf.reduce_sum(current_intensities):
             return False
 
-        event_type = None  #TODO remove after a while
-        for type_id, type_int_boundary in enumerate(tf.cumsum(current_intensities)):
-            if random_val * upper_intensity_bound <= type_int_boundary:
-                event_type = type_id
-                break
-        assert event_type is not None  #TODO remove after a while
+        event_type = bisect_left(tf.cumsum(current_intensities).numpy(), random_val * upper_intensity_bound)
 
         return [event_type]
 
@@ -147,12 +144,7 @@ class GraphNeurawkesGenerator(AbstractGenerator):
         if random_val * upper_intensity_bound > tf.reduce_sum(current_intensities):
             return False
 
-        current_sender = None  #TODO remove after a while
-        for vertex_id, vertex_int_boundary in enumerate(tf.cumsum(current_intensities)):
-            if random_val * upper_intensity_bound <= vertex_int_boundary:
-                current_sender = vertex_id
-                break
-        assert current_sender is not None  #TODO remove after a while
+        current_sender = bisect_left(tf.cumsum(current_intensities).numpy(), random_val * upper_intensity_bound)
 
         sender_vstate = current_vstates[current_sender]
         sender_norm = current_norms[current_sender]

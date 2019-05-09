@@ -3,6 +3,10 @@ from base_config import BASE_RUN
 
 RUN_full = {
     **BASE_RUN,
+    'default_values': {
+        **BASE_RUN['default_values'],
+        'model_savepath': 'full_saved_models/${id}'
+    },
     'values': {
         'data_path': [
             '../data/edgelist_data/fb-forum/data.csv',

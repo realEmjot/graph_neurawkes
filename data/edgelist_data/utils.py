@@ -1,6 +1,11 @@
+import functools
+import random
+
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+
+SHUFFLE_SEED = 0.1995
 
 
 def _get_pair_id_with_self_links(i, j, num_ids):
@@ -44,6 +49,17 @@ def _get_df(filepath):
     return df
 
 
+def _cut_func_shuffle_decorator(cut_func):
+    @functools.wraps(cut_func)
+    def wrapper(*args, shuffle=True, **kwargs):
+        dfs = cut_func(*args, **kwargs)
+        if shuffle:
+            random.shuffle(dfs, lambda: SHUFFLE_SEED)
+        return dfs
+    return wrapper
+
+
+@_cut_func_shuffle_decorator
 def cut_evenly(df, piece_len, min_len=2, take_rest=False):
     if piece_len > len(df):
         raise ValueError('piece_len cannot be larger than length of dataset!')
@@ -64,6 +80,7 @@ def cut_evenly(df, piece_len, min_len=2, take_rest=False):
     return dfs
 
 
+@_cut_func_shuffle_decorator
 def cut_on_big_gaps(df, min_gap_size, min_len=2):
     t_diffs = np.array([t2 - t1 for t1, t2 in zip(df.time[:-1], df.time[1:])])
     boundaries = np.nonzero(t_diffs >= min_gap_size)[0] + 1

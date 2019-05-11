@@ -21,7 +21,7 @@ RUN_full = {
             {'min_gap_size': 45000}
         ],
 
-        'num_units': [64, 128, 256, 512],
+        'num_units': [64, 128, 256],
         'vstate_len': [50, 100, 200, 300]
     },
     'run': {

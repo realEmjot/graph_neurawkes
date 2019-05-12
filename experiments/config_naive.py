@@ -6,6 +6,7 @@ BASE_NAIVE_RUN = {
         **BASE_RUN['default_values'],
         'data_mode': 'naive'
     },
+    'values': {} # hack,
     'run': 'default'
 }
 

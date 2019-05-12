@@ -5,6 +5,7 @@ RUN_full = {
     **BASE_RUN,
     'default_values': {
         **BASE_RUN['default_values'],
+        'data_mode': 'full',
         'model_savepath': 'full_saved_models/${id}'
     },
     'values': {

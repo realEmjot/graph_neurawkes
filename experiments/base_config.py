@@ -13,7 +13,6 @@ BASE_RUN = {
         'batch_size': 1,
         'val_ratio': 0.2,
         'data_type': 'edgelist',
-        'data_mode': 'full',
         'batching_mode': 'gap_cut'
     },
     'post_hook': tf.reset_default_graph

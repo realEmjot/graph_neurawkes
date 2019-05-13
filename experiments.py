@@ -29,10 +29,12 @@ def calculate_multiset_jaccard_index(seq1, seq2):
 
 
 def _calculate_jensen(seq1, seq2, num_types):
-    p1 = np.bincount(seq1, minlength=num_types)
+    minlength = max(num_types, max(seq1) + 1, max(seq2) + 1)
+
+    p1 = np.bincount(seq1, minlength=minlength)
     p1 = p1 / p1.sum()
 
-    p2 = np.bincount(seq2, minlength=num_types)
+    p2 = np.bincount(seq2, minlength=minlength)
     p2 = p2 / p2.sum()
     
     return distance.jensenshannon(p1, p2)
@@ -108,19 +110,27 @@ def calculate_time_deltas_distribution(seq1, seq2):
     return np.histogram([e1[2] - e2[2] for e1, e2 in zip(seq1, seq2)])
 
 
-seq1 = [
-    (1, 2, 0.4),
-    (0, 1, 0.6),
-    (0, 2, 0.85)
-]
-seq2 = [
-    (0, 1, 0.3),
-    (0, 1, 0.6),
-    (1, 1, 0.9)
-]
+####################################################
 
-# print(calculate_sender_or_recipient_jaccard(seq1, seq2))
-# print(calculate_sender_jaccard(seq1, seq2, calculate_multiset_jaccard_index))
-# print(calculate_recipient_jaccard(seq1, seq2, calculate_multiset_jaccard_index))
-#print(calculate_time_deltas_distribution(seq1, seq2))
-print(calculate_sender_or_recipient_jensen(seq1, seq2, 3))
+
+def calculate_everything(seq1, seq2, num_types):
+    return [
+        calculate_sender_or_recipient_jaccard(seq1, seq2),
+        calculate_sender_or_recipient_jaccard(seq1, seq2, calculate_multiset_jaccard_index),
+        calculate_sender_or_recipient_jensen(seq1, seq2, num_types),
+
+        calculate_sender_jaccard(seq1, seq2),
+        calculate_sender_jaccard(seq1, seq2, calculate_multiset_jaccard_index),
+        calculate_sender_jensen(seq1, seq2, num_types),
+
+        calculate_recipient_jaccard(seq1, seq2),
+        calculate_recipient_jaccard(seq1, seq2, calculate_multiset_jaccard_index),
+        calculate_recipient_jensen(seq1, seq2, num_types),
+
+        calculate_edge_jaccard(seq1, seq2),
+        calculate_edge_jensen(seq1, seq2, num_types),
+
+        calculate_full_jaccard(seq1, seq2),
+
+        calculate_time_deltas_distribution(seq1, seq2)
+    ]

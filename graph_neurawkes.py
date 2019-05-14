@@ -82,8 +82,8 @@ def train_and_save(
             raise ValueError
         model = GraphNeurawkes(num_units, num_types, vstate_len, self_links)
 
-    dataset, dataset_size = ds_func(data_path, cut_func, **additional_kwargs,
-                                    **batching_kwargs)
+    dataset, dataset_size = ds_func(filepath=data_path, cut_func=cut_func,
+                                    **additional_kwargs, **batching_kwargs)
 
     with tf.Session() as sess:
         result = model.train(

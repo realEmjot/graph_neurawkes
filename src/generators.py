@@ -57,6 +57,9 @@ class AbstractGenerator(abc.ABC):
             )
             c_t = graph_vars[1]
 
+            print(f'events: {len(generated_sequence)}/{max_events}\ttime: {current_time:.2}/{max_time}', end='\r')
+
+        print()
         return generated_sequence
 
     def _apply_seed(self, seed, graph_vars):

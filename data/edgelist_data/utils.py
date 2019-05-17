@@ -17,15 +17,21 @@ def _get_pair_id_without_self_links(i, j, num_ids):
     return num_ids * i + j - i - int(i < j)
 
 
-def translate_pair_id_with_self_links(pair_id, num_ids):
+def _translate_pair_id_with_self_links(pair_id, num_ids):
     return pair_id // num_ids, pair_id % num_ids
 
 
-def translate_pair_id_without_self_links(pair_id, num_ids):
+def _translate_pair_id_without_self_links(pair_id, num_ids):
     i = pair_id // (num_ids - 1)
     j = pair_id % (num_ids - 1)
     j += int(j >= i)
     return i, j
+
+def translate_pair_id(pair_id, num_ids, self_links):
+    if self_links:
+        return _translate_pair_id_with_self_links(pair_id, num_ids)
+    else:
+        return _translate_pair_id_without_self_links(pair_id, num_ids)
 
 
 def _get_event_ids(df, num_ids, self_links=True):

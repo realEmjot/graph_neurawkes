@@ -100,8 +100,8 @@ def calculate_edge_jensen(seq1, seq2, num_types, self_links):
         id_func = edge_utils._get_pair_id_without_self_links
 
     return _calculate_jensen(
-        [id_func(s, r) for s, r, _ in seq1],
-        [id_func(s, r) for s, r, _ in seq2],
+        [id_func(s, r, num_types) for s, r, _ in seq1],
+        [id_func(s, r, num_types) for s, r, _ in seq2],
         num_types ** 2 - (num_types if not self_links else 0)
     )
 

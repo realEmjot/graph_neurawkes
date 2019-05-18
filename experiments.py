@@ -133,6 +133,7 @@ def calculate_everything(seq1, seq2, num_types, self_links):
         calculate_recipient_jensen(seq1, seq2, num_types),
 
         calculate_edge_jaccard(seq1, seq2),
+        calculate_edge_jaccard(seq1, seq2, calculate_multiset_jaccard_index),
         calculate_edge_jensen(seq1, seq2, num_types, self_links),
 
         calculate_full_jaccard(seq1, seq2),

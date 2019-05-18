@@ -4,6 +4,8 @@ from itertools import product
 import numpy as np
 from scipy.spatial import distance
 
+import data.edgelist_data.utils as edge_utils
+
 
 def calculate_jaccard_index(seq1, seq2):
     uniq1 = set(seq1)
@@ -29,12 +31,10 @@ def calculate_multiset_jaccard_index(seq1, seq2):
 
 
 def _calculate_jensen(seq1, seq2, num_types):
-    minlength = max(num_types, max(seq1) + 1, max(seq2) + 1)
-
-    p1 = np.bincount(seq1, minlength=minlength)
+    p1 = np.bincount(seq1, minlength=num_types)
     p1 = p1 / p1.sum()
 
-    p2 = np.bincount(seq2, minlength=minlength)
+    p2 = np.bincount(seq2, minlength=num_types)
     p2 = p2 / p2.sum()
     
     return distance.jensenshannon(p1, p2)
@@ -93,11 +93,16 @@ def calculate_edge_jaccard(seq1, seq2, jacc_func=calculate_jaccard_index):
     )
 
 
-def calculate_edge_jensen(seq1, seq2, num_types):
+def calculate_edge_jensen(seq1, seq2, num_types, self_links):
+    if self_links:
+        id_func = edge_utils._get_pair_id_with_self_links
+    else:
+        id_func = edge_utils._get_pair_id_without_self_links
+
     return _calculate_jensen(
-        [num_types * s + r for s, r, _ in seq1],
-        [num_types * s + r for s, r, _ in seq2],
-        num_types
+        [id_func(s, r) for s, r, _ in seq1],
+        [id_func(s, r) for s, r, _ in seq2],
+        num_types ** 2 - (num_types if not self_links else 0)
     )
 
 
@@ -113,7 +118,7 @@ def calculate_time_deltas_distribution(seq1, seq2):
 ####################################################
 
 
-def calculate_everything(seq1, seq2, num_types):
+def calculate_everything(seq1, seq2, num_types, self_links):
     return [
         calculate_sender_or_recipient_jaccard(seq1, seq2),
         calculate_sender_or_recipient_jaccard(seq1, seq2, calculate_multiset_jaccard_index),
@@ -128,7 +133,7 @@ def calculate_everything(seq1, seq2, num_types):
         calculate_recipient_jensen(seq1, seq2, num_types),
 
         calculate_edge_jaccard(seq1, seq2),
-        calculate_edge_jensen(seq1, seq2, num_types),
+        calculate_edge_jensen(seq1, seq2, num_types, self_links),
 
         calculate_full_jaccard(seq1, seq2),
 

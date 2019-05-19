@@ -45,25 +45,27 @@ def _get_event_ids(df, num_ids, self_links=True):
                     dtype=np.int32)
 
 
-def _get_df_from_csv(filepath):
+def _get_df_from_csv(filepath, subtract_min_time=True):
     df = pd.read_csv(filepath, names=['sender', 'recipient', 'time'],
                        dtype={'sender': np.int32, 'recipient': np.int32,
                               'time': np.float32})
-    df.time -= df.time.min()
-    df.time += 1
+    if subtract_min_time:
+        df.time -= df.time.min()
+        df.time += 1
 
     return df
 
 
-def _get_df_from_sequence(seq):
+def _get_df_from_sequence(seq, subtract_min_time=False):
     df = pd.DataFrame(seq, columns=['sender', 'recipient', 'time'])
 
     df.sender = df.sender.astype(np.int32)
     df.recipient = df.recipient.astype(np.int32)
     df.time = df.time.astype(np.float32)
 
-    df.time -= df.time.min()
-    df.time += 1
+    if subtract_min_time:
+        df.time -= df.time.min()
+        df.time += 1
 
     return df
 
@@ -114,16 +116,19 @@ def cut_on_big_gaps(df, min_gap_size, min_len=2):
     return dfs
 
 
-def to_event_dataset_naive(filepath=None, seq=None, max_times=None, cut_func=None, self_links=True, **cut_kwargs):
+def to_event_dataset_naive(filepath=None, seq=None, seqs=None, max_times=None, cut_func=None, self_links=True, **cut_kwargs):
     if filepath is not None:
         df = _get_df_from_csv(filepath)
-    else:
+    elif seq is not None:
         df = _get_df_from_sequence(seq)
+    else:
+        dfs = [_get_df_from_sequence(seq) for seq in seqs]
 
     num_ids = max(df.sender.max(), df.recipient.max()) + 1
 
-    if cut_func:
-        dfs = cut_func(df, **cut_kwargs)
+    if cut_func or seqs:
+        if not seqs:
+            dfs = cut_func(df, **cut_kwargs)
         if max_times is None:
             data = [(_get_event_ids(df, num_ids, self_links), df.time, df.time.max()) for df in dfs]
         else:
@@ -137,14 +142,17 @@ def to_event_dataset_naive(filepath=None, seq=None, max_times=None, cut_func=Non
     return ds, 1
 
 
-def to_event_dataset_sender_only(filepath=None, seq=None, max_times=None, cut_func=None, **cut_kwargs):
+def to_event_dataset_sender_only(filepath=None, seq=None, seqs=None, max_times=None, cut_func=None, **cut_kwargs):
     if filepath is not None:
         df = _get_df_from_csv(filepath)
-    else:
+    elif seq is not None:
         df = _get_df_from_sequence(seq)
+    else:
+        dfs = [_get_df_from_sequence(seq) for seq in seqs]
 
-    if cut_func:
-        dfs = cut_func(df, **cut_kwargs)
+    if cut_func or seqs:
+        if not seqs:
+            dfs = cut_func(df, **cut_kwargs)
         if max_times is None:
             data = [(df.sender, df.time, df.time.max()) for df in dfs]
         else:
@@ -158,14 +166,17 @@ def to_event_dataset_sender_only(filepath=None, seq=None, max_times=None, cut_fu
     return ds, 1
 
 
-def to_event_dataset_full(filepath=None, seq=None, max_times=None, cut_func=None, **cut_kwargs):
+def to_event_dataset_full(filepath=None, seq=None, seqs=None, max_times=None, cut_func=None, **cut_kwargs):
     if filepath is not None:
         df = _get_df_from_csv(filepath)
-    else:
+    elif seq is not None:
         df = _get_df_from_sequence(seq)
+    else:
+        dfs = [_get_df_from_sequence(seq) for seq in seqs]
 
-    if cut_func:
-        dfs = cut_func(df, **cut_kwargs)
+    if cut_func or seqs:
+        if not seqs:
+            dfs = cut_func(df, **cut_kwargs)
         if max_times is None:
             data = [(df.sender, df.recipient, df.time, df.time.max()) for df in dfs]
         else:

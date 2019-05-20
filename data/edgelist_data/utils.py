@@ -116,15 +116,14 @@ def cut_on_big_gaps(df, min_gap_size, min_len=2):
     return dfs
 
 
-def to_event_dataset_naive(filepath=None, seq=None, seqs=None, max_times=None, cut_func=None, self_links=True, **cut_kwargs):
+def to_event_dataset_naive(filepath=None, seq=None, seqs=None, num_ids=None, max_times=None, cut_func=None, self_links=True, **cut_kwargs):
     if filepath is not None:
         df = _get_df_from_csv(filepath)
+        num_ids = max(df.sender.max(), df.recipient.max()) + 1
     elif seq is not None:
         df = _get_df_from_sequence(seq)
     else:
         dfs = [_get_df_from_sequence(seq) for seq in seqs]
-
-    num_ids = max(df.sender.max(), df.recipient.max()) + 1
 
     if cut_func or seqs:
         if not seqs:

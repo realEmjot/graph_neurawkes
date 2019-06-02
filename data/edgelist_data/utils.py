@@ -17,6 +17,15 @@ def _get_pair_id_without_self_links(i, j, num_ids):
     return num_ids * i + j - i - int(i < j)
 
 
+def _get_pair_id_with_self_links_undir(i, j, num_ids):
+    return num_ids * i + j - i * (i + 1) / 2
+
+
+def _get_pair_id_without_self_links_undir(i, j, num_ids):
+    assert i != j
+    return num_ids * i + j - i * (i + 1) / 2 - i - 1
+
+
 def _translate_pair_id_with_self_links(pair_id, num_ids):
     return pair_id // num_ids, pair_id % num_ids
 
@@ -27,6 +36,7 @@ def _translate_pair_id_without_self_links(pair_id, num_ids):
     j += int(j >= i)
     return i, j
 
+
 def translate_pair_id(pair_id, num_ids, self_links):
     if self_links:
         return _translate_pair_id_with_self_links(pair_id, num_ids)
@@ -34,11 +44,17 @@ def translate_pair_id(pair_id, num_ids, self_links):
         return _translate_pair_id_without_self_links(pair_id, num_ids)
 
 
-def _get_event_ids(df, num_ids, self_links=True):
+def _get_event_ids(df, num_ids, self_links=True, directed=True):
     if self_links:
-        pair_func = _get_pair_id_with_self_links
+        if directed:
+            pair_func = _get_pair_id_with_self_links
+        else:
+            pair_func = _get_pair_id_with_self_links_undir
     else:
-        pair_func = _get_pair_id_without_self_links
+        if directed:
+            pair_func = _get_pair_id_without_self_links
+        else:
+            pair_func = _get_pair_id_without_self_links_undir
 
     return np.array([pair_func(i, j, num_ids)
                     for i, j in zip(df.sender, df.recipient)],
@@ -116,7 +132,7 @@ def cut_on_big_gaps(df, min_gap_size, min_len=2):
     return dfs
 
 
-def to_event_dataset_naive(filepath=None, seq=None, seqs=None, num_ids=None, max_times=None, cut_func=None, self_links=True, **cut_kwargs):
+def to_event_dataset_naive(filepath=None, seq=None, seqs=None, num_ids=None, max_times=None, cut_func=None, self_links=True, directed=True, **cut_kwargs):
     if filepath is not None:
         df = _get_df_from_csv(filepath)
         num_ids = max(df.sender.max(), df.recipient.max()) + 1
@@ -129,15 +145,15 @@ def to_event_dataset_naive(filepath=None, seq=None, seqs=None, num_ids=None, max
         if not seqs:
             dfs = cut_func(df, **cut_kwargs)
         if max_times is None:
-            data = [(_get_event_ids(df, num_ids, self_links), df.time, df.time.max()) for df in dfs]
+            data = [(_get_event_ids(df, num_ids, self_links, directed), df.time, df.time.max()) for df in dfs]
         else:
             assert len(dfs) == len(max_times)
             # TODO check if every max time is larger than last event time
-            data = [(_get_event_ids(df, num_ids, self_links), df.time, max_time) for df, max_time in zip(dfs, max_times)]
+            data = [(_get_event_ids(df, num_ids, self_links, directed), df.time, max_time) for df, max_time in zip(dfs, max_times)]
         ds = tf.data.Dataset.from_generator(lambda: data, (tf.int32, tf.float32, tf.float32))
         return ds, len(dfs)
 
-    ds = tf.data.Dataset.from_tensors((_get_event_ids(df, num_ids, self_links), df.time, df.time.max()))
+    ds = tf.data.Dataset.from_tensors((_get_event_ids(df, num_ids, self_links, directed), df.time, df.time.max()))
     return ds, 1
 
 

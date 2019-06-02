@@ -33,7 +33,8 @@ def train_and_save(
         data_mode='full',
         batching_mode=None,
         batching_kwargs=None,
-        self_links=False):
+        self_links=False,
+        directed=True):
 
     _check_mode_decorator('static')
 
@@ -63,7 +64,10 @@ def train_and_save(
         elif data_mode == 'naive':
             ds_func = edgelist_utils.to_event_dataset_naive
             model_class = Neurawkes
-            additional_kwargs = {'self_links': self_links}
+            additional_kwargs = {
+                'self_links': self_links,
+                'directed': directed
+            }
 
             if self_links:
                 num_types = pow(num_types, 2)

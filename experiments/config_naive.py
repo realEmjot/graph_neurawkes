@@ -24,14 +24,15 @@ RUN_naive_basic_fb = {
     }
 }
 
-RUN_naive_basic_ia = {
+RUN_naive_basic_hypertext = {
     **BASE_NAIVE_RUN,
     'default_values': {
         **BASE_NAIVE_RUN['default_values'],
         'data_path': '../data/edgelist_data/ia-contacts_hypertext2009/data.csv',
         'self_links': False,
+        'directed': False,
         'num_types': 113,
-        'model_savepath': 'naive_saved_models/naive_basic_ia',
+        'model_savepath': 'naive_saved_models/naive_basic_hypertext',
         'batching_kwargs': {'min_gap_size': 75},
         'num_units': 64,
         'vstate_len': 50

@@ -86,18 +86,30 @@ def calculate_recipient_jensen(seq1, seq2, num_types):
     )
 
 
-def calculate_edge_jaccard(seq1, seq2, jacc_func=calculate_jaccard_index):
-    return jacc_func(
-        [e[:2] for e in seq1],
-        [e[:2] for e in seq2]
-    )
-
-
-def calculate_edge_jensen(seq1, seq2, num_types, self_links):
-    if self_links:
-        id_func = edge_utils._get_pair_id_with_self_links
+def calculate_edge_jaccard(seq1, seq2, jacc_func=calculate_jaccard_index, directed=True):
+    if directed:
+        return jacc_func(
+            [e[:2] for e in seq1],
+            [e[:2] for e in seq2]
+        )
     else:
-        id_func = edge_utils._get_pair_id_without_self_links
+        return jacc_func(
+            [(s, r) if s <= r else (r, s) for s, r, _ in seq1],
+            [(s, r) if s <= r else (r, s) for s, r, _ in seq2]
+        )
+
+
+def calculate_edge_jensen(seq1, seq2, num_types, self_links, directed=True):
+    if self_links:
+        if directed:
+            id_func = edge_utils._get_pair_id_with_self_links
+        else:
+            id_func = edge_utils._get_pair_id_with_self_links_undir
+    else:
+        if directed:
+            id_func = edge_utils._get_pair_id_without_self_links
+        else:
+            id_func = edge_utils._get_pair_id_without_self_links_undir
 
     return _calculate_jensen(
         [id_func(s, r, num_types) for s, r, _ in seq1],

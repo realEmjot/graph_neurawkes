@@ -3,6 +3,7 @@ import os
 import pickle
 
 import tensorflow as tf
+from scipy.special import binom
 
 import data.edgelist_data.utils as edgelist_utils
 from src import Neurawkes, GraphNeurawkes
@@ -69,10 +70,15 @@ def train_and_save(
                 'directed': directed
             }
 
-            if self_links:
-                num_types = pow(num_types, 2)
+            if directed:
+                new_num_types = pow(num_types, 2)
             else:
-                num_types = pow(num_types, 2) - num_types
+                new_num_types = int(binom(num_types, 2)) + num_types
+
+            if not self_links:
+                new_num_types -= num_types
+
+            num_types = new_num_types
 
         else:
             raise NotImplementedError

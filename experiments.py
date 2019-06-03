@@ -130,7 +130,7 @@ def calculate_time_deltas_distribution(seq1, seq2):
 ####################################################
 
 
-def calculate_everything(seq1, seq2, num_types, self_links):
+def calculate_everything(seq1, seq2, num_types, self_links, directed):
     return [
         calculate_sender_or_recipient_jaccard(seq1, seq2),
         calculate_sender_or_recipient_jaccard(seq1, seq2, calculate_multiset_jaccard_index),
@@ -144,9 +144,9 @@ def calculate_everything(seq1, seq2, num_types, self_links):
         calculate_recipient_jaccard(seq1, seq2, calculate_multiset_jaccard_index),
         calculate_recipient_jensen(seq1, seq2, num_types),
 
-        calculate_edge_jaccard(seq1, seq2),
-        calculate_edge_jaccard(seq1, seq2, calculate_multiset_jaccard_index),
-        calculate_edge_jensen(seq1, seq2, num_types, self_links),
+        calculate_edge_jaccard(seq1, seq2, directed=directed),
+        calculate_edge_jaccard(seq1, seq2, calculate_multiset_jaccard_index, directed),
+        calculate_edge_jensen(seq1, seq2, num_types, self_links, directed),
 
         calculate_full_jaccard(seq1, seq2),
 

@@ -3,15 +3,7 @@ from . import utils
 
 
 class Intensity(utils.VariablesContainer):
-    """
-    Class for obtaining event intensities from CSTM hidden states.
-    """
     def __init__(self, num_units, num_types):
-        """
-        Parameters:
-            num_units (int): size of modified CSTM model
-            num_types (int): number of different event types in data
-        """
         self.num_types = num_types  # used by generator
         self.W, self._raw_s = self._create_type_variables(num_units, num_types)
 
@@ -23,27 +15,12 @@ class Intensity(utils.VariablesContainer):
         return [self.W, self._raw_s]
 
     def get_intensity_for_type(self, type_ids, cstm_hs):
-        """
-        Method for obtaining intensity for each event in given event stream.
-        Parameters:
-            type_ids (tf.Tensor): vector of event types
-            cstm_hs (tf.Tensor): matrix of CSTM hidden states for every element
-            in type_ids param; its first dim is the same as the size of
-            type_ids param, and its second dim is equal to num_units
-            parameter of __init__ method
-        Returns:
-            (tf.Tensor): vector of intensity values for every type in
-                type_ids param
-        """
         w = tf.gather(self.W, type_ids)
         s = tf.gather(self.s, type_ids)
         raw_intensity = tf.reduce_sum(w * cstm_hs, axis=1)
         return self.apply_transfer_function(raw_intensity, s=s)
 
     def get_all_intensities(self, ctsm_Hs):
-        """
-        TODO
-        """
         raw_intensities = tf.einsum('ijk,lk->ijl', ctsm_Hs, self.W)
         return self.apply_transfer_function(raw_intensities)
 

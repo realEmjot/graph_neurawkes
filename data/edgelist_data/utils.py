@@ -1,5 +1,7 @@
-import functools
 import random
+
+from functools import wraps
+from itertools import combinations
 
 import numpy as np
 import pandas as pd
@@ -87,7 +89,7 @@ def _get_df_from_sequence(seq, subtract_min_time=False):
 
 
 def _cut_func_shuffle_decorator(cut_func):
-    @functools.wraps(cut_func)
+    @wraps(cut_func)
     def wrapper(*args, shuffle=True, **kwargs):
         dfs = cut_func(*args, **kwargs)
         if shuffle:
@@ -132,7 +134,9 @@ def cut_on_big_gaps(df, min_gap_size, min_len=2):
     return dfs
 
 
-def to_event_dataset_naive(filepath=None, seq=None, seqs=None, num_ids=None, max_times=None, cut_func=None, self_links=True, directed=True, **cut_kwargs):
+def to_event_dataset_naive(filepath=None, seq=None, seqs=None, num_ids=None,
+                           max_times=None, cut_func=None, self_links=True, 
+                           directed=True, **cut_kwargs):
     if filepath is not None:
         df = _get_df_from_csv(filepath)
         num_ids = max(df.sender.max(), df.recipient.max()) + 1
@@ -157,31 +161,8 @@ def to_event_dataset_naive(filepath=None, seq=None, seqs=None, num_ids=None, max
     return ds, 1
 
 
-def to_event_dataset_sender_only(filepath=None, seq=None, seqs=None, max_times=None, cut_func=None, **cut_kwargs):
-    if filepath is not None:
-        df = _get_df_from_csv(filepath)
-    elif seq is not None:
-        df = _get_df_from_sequence(seq)
-    else:
-        dfs = [_get_df_from_sequence(seq) for seq in seqs]
-
-    if cut_func or seqs:
-        if not seqs:
-            dfs = cut_func(df, **cut_kwargs)
-        if max_times is None:
-            data = [(df.sender, df.time, df.time.max()) for df in dfs]
-        else:
-            assert len(dfs) == len(max_times)
-            # TODO check if every max time is larger than last event time
-            data = [(df.sender, df.time, max_time) for df, max_time in zip(dfs, max_times)]
-        ds = tf.data.Dataset.from_generator(lambda: data, (tf.int32, tf.float32, tf.float32))
-        return ds, len(dfs)
-
-    ds = tf.data.Dataset.from_tensors((df.sender, df.time, df.time.max()))
-    return ds, 1
-
-
-def to_event_dataset_full(filepath=None, seq=None, seqs=None, max_times=None, cut_func=None, **cut_kwargs):
+def to_event_dataset_full(filepath=None, seq=None, seqs=None, max_times=None,
+                          cut_func=None, **cut_kwargs):
     if filepath is not None:
         df = _get_df_from_csv(filepath)
     elif seq is not None:

@@ -127,17 +127,17 @@ class ContLSTMModel(abc.ABC):
             'val_lhds': val_lhd_acc
         }
 
-    def generate(self, saved_path=None, seed=None, max_events=None, max_time=None):
+    def generate(self, model_savepath=None, seed=None, max_events=None, max_time=None):
         assert tf.executing_eagerly()
 
         if self._generator is None:
             raise NotImplementedError
 
-        if saved_path is not None:
+        if model_savepath is not None:
             tfe.Saver([
                 *self._cell.get_variables_list(),
                 *self._intensity_obj.get_variables_list()
-            ]).restore(saved_path)
+            ]).restore(model_savepath)
 
         return self._generator.generate_events(seed, max_events, max_time)
 
@@ -151,7 +151,7 @@ class ContLSTMModel(abc.ABC):
             y=tf.fill(tf.shape(t_seq), T_max)
         )
         inter_t_seq = tf.map_fn(
-            fn=lambda T: tf.random.uniform([tf.cast(N, tf.int32)], 1e-10, T),  # TODO hack
+            fn=lambda T: tf.random.uniform([tf.cast(N, tf.int32)], 1e-10, T),
             elems=T
         )
 
@@ -163,18 +163,7 @@ class ContLSTMModel(abc.ABC):
 
 
 class Neurawkes(ContLSTMModel):
-    """
-    This class is an implementation of Neural Hawkes model (proposed by _ in
-    their paper _), written in Google Tensorflow.
-    """
     def __init__(self, num_units, num_types):
-        """
-        Parameters:
-            num_units (int): size of modified LSTM model (CSTM); higher number
-                             means more expressive model, but training takes
-                             longer
-            num_types (int): number of different event types in data
-        """
         super().__init__(
             num_units,
             num_types + 1
@@ -184,20 +173,6 @@ class Neurawkes(ContLSTMModel):
 
     def train(self, sess, dataset, N_ratio, num_epochs, batch_size,
               dataset_size=None, val_ratio=None, savepath=None):
-        """
-        Model training.
-        Parameters:
-            sess (tf.Session): Tensorflow Session object
-            dataset (tf.Dataset): yet unbatched tf.Dataset, containing training
-                data; each element should be a tuple of three elements:
-                (event type sequence, event time-since-start sequence,
-                end-of-sequence time)
-            N_ratio (double): positive number, designated ratio between
-                negative and positive examples for likelihood function
-            num_epochs (int)
-            batch_size (int)
-            dataset_size (int) optional
-        """
         iterator = tf.data.Iterator.from_structure(dataset.output_types,
                                                    ([None, None], [None, None], [None]))
         x_seq, t_seq, T = iterator.get_next()

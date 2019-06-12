@@ -1,3 +1,0 @@
-[submodule "experiments/experiments_runner"]
-	path = experiments/experiments_runner
-	url = https://github.com/ArsArkanum95/simple_experiments_runner.git

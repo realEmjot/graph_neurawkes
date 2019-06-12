@@ -57,8 +57,6 @@ class AbstractGenerator(abc.ABC):
             )
             c_t = graph_vars[1]
 
-            #print(f'events: {len(generated_sequence)}/{max_events}\ttime: {current_time:.2}/{max_time}', end='\r')
-
         return generated_sequence
 
     def _apply_seed(self, seed, graph_vars):
@@ -100,8 +98,6 @@ class NeurawkesGenerator(AbstractGenerator):
         current_intensities = tf.einsum('ij,j->i', self.intensity_obj.W, tf.squeeze(h_t))
         current_intensities = self.intensity_obj.apply_transfer_function(current_intensities)
 
-        assert upper_intensity_bound >= tf.reduce_sum(current_intensities) #TODO remove after a while
-
         random_val = tf.random.uniform([])
         if random_val * upper_intensity_bound > tf.reduce_sum(current_intensities):
             return False
@@ -139,8 +135,6 @@ class GraphNeurawkesGenerator(AbstractGenerator):
         current_vstates = tf.einsum('ijk,k->ij', self.intensity_obj.W, tf.squeeze(h_t))
         current_norms = tf.sqrt(tf.reduce_sum(tf.pow(current_vstates, 2), axis=-1))
         current_intensities = self.intensity_obj.apply_transfer_function(current_norms)
-
-        assert upper_intensity_bound >= tf.reduce_sum(current_intensities) #TODO remove after a while
 
         random_val = tf.random.uniform([])
         if random_val * upper_intensity_bound > tf.reduce_sum(current_intensities):

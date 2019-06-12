@@ -1,0 +1,16 @@
+{
+    "data_path": "data/edgelist_data/fb-forum/data.csv",
+    "num_epochs": 10,
+    "batch_size": 1,
+    "num_units": 64,
+    "num_types": 899,
+    "N_ratio": 1.0,
+    "vstate_len": 50,
+    "model_mode": "GNH",
+    "batching_mode": "gap_cut",
+    "batching_kwargs": {
+        "min_gap_size": 5000
+    },
+    "self_links": true,
+    "directed": true
+}

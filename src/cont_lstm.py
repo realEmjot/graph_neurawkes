@@ -34,7 +34,7 @@ class ContLSTMCell(utils.VariablesContainer):
 
         c = f * c_init + i * z
         c_base = f_base * c_base_init + i_base * z
-        decay = self._create_gate(*self.decay_vars, x, h_init, tf.nn.softplus, 'decay') # warning: softplus?
+        decay = self._create_gate(*self.decay_vars, x, h_init, tf.nn.softplus, 'decay')
 
         return t_init, c, c_base, decay, o
 
@@ -46,7 +46,7 @@ class ContLSTMCell(utils.VariablesContainer):
 
         return c_t, c_base, h_t # c_base returned here for convenience
         
-    def _create_gate_variables(self, num_units, elem_size, name): # TODO parametrize initializers
+    def _create_gate_variables(self, num_units, elem_size, name):
         with tf.variable_scope(name, initializer=tf.glorot_normal_initializer()):
             W = tf.get_variable('W', [elem_size, num_units])
             U = tf.get_variable('U', [num_units] * 2)

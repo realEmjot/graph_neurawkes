@@ -17,6 +17,7 @@ A config file must be in *.json* format, and contain a dictionary with settings,
 
 - model_mode: one of *"GNH"* (Graph Neural Hawkes) or *"NH"* (Neural Hawkes)
 - results_savepath: training statistics savepath
+- model_savepath: model learned weghts savepath 
 - data_path: path to a valid text file containing input event stream network (examples are contained in `data` directory)
 - self_links
 - directed
@@ -29,6 +30,17 @@ A config file must be in *.json* format, and contain a dictionary with settings,
 - batching_mode: one of *"gap_cut"*, *"even_cut"* or *None*
 - batching_kwargs: a dictionary containing batching settings
 
+##### Batching settings
+
+For *gap_cut*:
+- min_gap_size
+- [min_len]
+
+For *even_cut*:
+- piece_len
+- [min_len]
+- [take_rest]
+
 
 #### Generation config keys
 
@@ -38,7 +50,7 @@ A config file must be in *.json* format, and contain a dictionary with settings,
 - num_types
 - vstate_len
 - self_links
-- model_savepath
+- model_savepath: 
 - seed
 - max_events
 - max_time

@@ -1,0 +1,6 @@
+# Checked with python 3.7.11 and pip 21.3.1
+
+numpy==1.21.4
+scipy==1.7.3
+tensorflow==1.*
+tqdm==4.62.3
